@@ -5,7 +5,7 @@ public class Bullet : MonoBehaviour
 {
     [SerializeField] private Transform vfxHitGreen;
     [SerializeField] private Transform vfxHitRed;
-    // LayerMask-ot megtartjuk, ha szükséged van rá:
+    
     [SerializeField] private LayerMask hitLayers;
 
     private Rigidbody bulletRigidBody;
@@ -69,13 +69,13 @@ public class Bullet : MonoBehaviour
             Debug.LogError("Splat Prefab is NULL!");
             return;
         }
-
+        Debug.Log("hit object: " + prefab);
         Quaternion rotation = Quaternion.FromToRotation(Vector3.right, hitNormal);
         Debug.Log("rotation: " + rotation);
         Vector3 spawnPos = hitPoint + hitNormal * 0.02f;
         
         Transform splat = Instantiate(prefab, spawnPos, rotation);
-
+        Debug.Log("hittransform: " + hitTransform);
         // RÖGZÍTÉS A FALHOZ
         splat.SetParent(hitTransform);
 
