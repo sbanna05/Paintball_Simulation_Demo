@@ -36,7 +36,7 @@ public class ShooterController : MonoBehaviour
     }
 
     private void Update()
-    {
+    {        
         normalSensitivity = 0.5f;
         aimSensitivity = 0.8f;
         aimRig.weight = Mathf.Lerp(aimRig.weight, aimRigWeight, Time.deltaTime * 20f);
@@ -62,7 +62,6 @@ public class ShooterController : MonoBehaviour
             thirdPersonController.setSensitivity(aimSensitivity);
             thirdPersonController.setRotateOnMove(false);
             aimRigWeight = 1f;
-
             animator.SetBool("canAim", true);
 
             // karakter igazítása a kamera irányába
@@ -77,7 +76,6 @@ public class ShooterController : MonoBehaviour
                 starterAssetsInputs.shoot = false;
                 animator.SetTrigger("shoot");
             }
-
         }
         else
         {

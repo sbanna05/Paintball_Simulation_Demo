@@ -70,9 +70,9 @@ public class Bullet : MonoBehaviour
             return;
         }
         Debug.Log("hit object: " + prefab);
-        Quaternion rotation = Quaternion.FromToRotation(Vector3.right, hitNormal);
+        Quaternion rotation = Quaternion.FromToRotation(Vector3.right, -hitNormal); //right-al talán jó volt
         Debug.Log("rotation: " + rotation);
-        Vector3 spawnPos = hitPoint + hitNormal * 0.02f;
+        Vector3 spawnPos = hitPoint + hitNormal * 0.002f;
         
         Transform splat = Instantiate(prefab, spawnPos, rotation);
         Debug.Log("hittransform: " + hitTransform);

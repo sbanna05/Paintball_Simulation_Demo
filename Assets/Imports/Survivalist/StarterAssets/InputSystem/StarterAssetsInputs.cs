@@ -53,10 +53,11 @@ namespace StarterAssets
 		{
 			AimInput(value.isPressed);
 		}
-		public void OnShoot(InputValue value)
-		{
-			ShootInput(value.isPressed);
-		}
+		public void OnShoot(InputValue value){
+    //Debug.Log("OnShoot CALLED: " + value.isPressed);
+    ShootInput(value.isPressed);
+        }
+
 #else
         // old input sys if we do decide to have it (most likely wont)...
 #endif
