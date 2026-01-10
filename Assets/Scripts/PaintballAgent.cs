@@ -6,21 +6,26 @@ using Unity.MLAgents.Actuators;
 using Unity.MLAgents.Sensors;
 using StarterAssets;
 using Cinemachine;
+using UnityEngine.InputSystem;
+
 
 public class PaintballAgent : Agent
 {
     [Header("Agent References")]
     [SerializeField] private Transform enemyTransform;
-    [SerializeField] private GameController gameController;
+    // GameController automatikusan megkeresve
+    private GameController gameController;
+    [SerializeField] private bool isMLControlled = true;
 
-    [Header("Spawn Settings")]
-    [SerializeField] private Transform[] spawnPoints;
 
     [Header("Detection Settings")]
     [SerializeField] private float maxRaycastDistance = 50f;
-    [SerializeField] private int raycastDirections = 8;
+    // raycastDirections ELTÁVOLÍTVA - Ray Perception Sensor használja
     [SerializeField] private LayerMask obstacleLayerMask;
     [SerializeField] private LayerMask coverLayerMask;
+
+    // MEGJEGYZÉS: Ray Perception Sensor automatikusan hozzáadja:
+    // - 7 ray * (1 hit/ray + 4 detectable tags) = ~35-50 observations
 
     [Header("Combat Settings")]
     [SerializeField] private float shootCooldown = 0.5f;
@@ -68,33 +73,43 @@ public class PaintballAgent : Agent
         {
             nearMissCollider.isTrigger = true;
         }
+
+        gameController = FindObjectOfType<GameController>();
+        if (gameController == null)
+        {
+            Debug.LogError("GameController NOT FOUND in scene!");
+        }
+
+        if (isMLControlled)
+        {
+            starterAssetsInputs.enablePlayerInput = false;
+        }
+
+
     }
 
     public override void OnEpisodeBegin()
     {
-        // Reset agent state
+        
+    }
+
+    public void ResetAgent(Transform spawnPoint)
+    {
         currentHealth = maxHealth;
         isUnderFire = false;
         underFireTimer = 0f;
         currentMode = AgentMode.Offensive;
         lastShootTime = -shootCooldown;
 
-        // Reset inputs
         starterAssetsInputs.move = Vector2.zero;
         starterAssetsInputs.look = Vector2.zero;
         starterAssetsInputs.aim = false;
         starterAssetsInputs.shoot = false;
         starterAssetsInputs.jump = false;
 
-        // Random spawn position
-        if (spawnPoints != null && spawnPoints.Length > 0)
-        {
-            Transform spawnPoint = spawnPoints[Random.Range(0, spawnPoints.Length)];
-            transform.position = spawnPoint.position;
-            transform.rotation = spawnPoint.rotation;
-        }
+        transform.position = spawnPoint.position;
+        transform.rotation = spawnPoint.rotation;
 
-        // Reset physics
         Rigidbody rb = GetComponent<Rigidbody>();
         if (rb != null)
         {
@@ -102,6 +117,7 @@ public class PaintballAgent : Agent
             rb.angularVelocity = Vector3.zero;
         }
     }
+
 
     public override void CollectObservations(VectorSensor sensor)
     {
@@ -135,20 +151,8 @@ public class PaintballAgent : Agent
             sensor.AddObservation(0f); // 1
         }
 
-        // 3. Environmental raycasts (8 observations)
-        for (int i = 0; i < raycastDirections; i++)
-        {
-            float angle = i * (360f / raycastDirections);
-            Vector3 direction = Quaternion.Euler(0, angle, 0) * transform.forward;
-
-            float hitDistance = maxRaycastDistance;
-            if (Physics.Raycast(transform.position + Vector3.up, direction, out RaycastHit hit, maxRaycastDistance, obstacleLayerMask))
-            {
-                hitDistance = hit.distance;
-            }
-
-            sensor.AddObservation(hitDistance / maxRaycastDistance); // normalized
-        }
+        // 3. Ray Perception Sensor automatically adds environmental observations!
+        // Nincs szükség manuális raycast-okra itt
 
         // 4. Combat state (3 observations)
         sensor.AddObservation(isUnderFire ? 1f : 0f); // 1
@@ -159,11 +163,19 @@ public class PaintballAgent : Agent
         float closestCoverDistance = FindClosestCover();
         sensor.AddObservation(closestCoverDistance / maxRaycastDistance); // 1
 
-        // Total: 7 + 5 + 8 + 3 + 1 = 24 observations
+        // Total MANUAL observations: 7 + 5 + 0 + 3 + 1 = 16
+        // Ray Perception Sensor adds automatically: ~35-50 (depending on settings)
+        // TOTAL: ~51-66 observations
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
+        // Debug: First action to verify ML is controlling
+        if (Time.frameCount % 100 == 0) // Log every 100 frames
+        {
+            Debug.Log($"{gameObject.name} - ML Action: Move={actions.DiscreteActions[0]}, Rotate={actions.DiscreteActions[1]}");
+        }
+
         // Discrete actions
         int moveAction = actions.DiscreteActions[0]; // 0-4: forward, back, left, right, none
         int rotateAction = actions.DiscreteActions[1]; // 0-2: left, none, right

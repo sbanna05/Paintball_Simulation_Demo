@@ -10,11 +10,15 @@ public class GameController : MonoBehaviour
     [SerializeField] private PaintballAgent agent2;
 
     [Header("Episode Settings")]
-    [SerializeField] private float maxEpisodeTime = 120f; // 2 minutes
-    [SerializeField] private float stalemateWarningTime = 60f; // Warning after 1 minute
+    [SerializeField] private float maxEpisodeTime = 180f; 
+    [SerializeField] private float stalemateWarningTime = 90f; 
 
     [Header("Statistics")]
     [SerializeField] private bool showDebugInfo = true;
+
+    [Header("Spawn Settings")]
+    [SerializeField] private Transform[] spawnPoints;
+
 
     private float episodeStartTime;
     private float currentEpisodeTime;
@@ -25,6 +29,9 @@ public class GameController : MonoBehaviour
     private int agent2Wins = 0;
     private int stalemates = 0;
     private int totalEpisodes = 0;
+
+    private List<int> availableSpawnIndices = new List<int>();
+
 
     private void Start()
     {
@@ -66,28 +73,58 @@ public class GameController : MonoBehaviour
         }
     }
 
+    private Transform GetUniqueSpawn()
+    {
+        if (availableSpawnIndices.Count == 0)
+        {
+            Debug.LogError("No available spawn points!");
+            return null;
+        }
+
+        int randomListIndex = Random.Range(0, availableSpawnIndices.Count);
+        int spawnIndex = availableSpawnIndices[randomListIndex];
+
+        availableSpawnIndices.RemoveAt(randomListIndex);
+
+        return spawnPoints[spawnIndex];
+    }
+
+
     private void StartNewEpisode()
     {
         episodeStartTime = Time.time;
         currentEpisodeTime = 0f;
         episodeActive = true;
 
-        // Reset both agents
-        agent1.OnEpisodeBegin();
-        agent2.OnEpisodeBegin();
+        totalEpisodes++;
+
+        // --- Spawn index lista újratöltése ---
+        availableSpawnIndices.Clear();
+        for (int i = 0; i < spawnPoints.Length; i++)
+            availableSpawnIndices.Add(i);
+
+        // --- Agent 1 spawn ---
+        Transform spawn1 = GetUniqueSpawn();
+        agent1.ResetAgent(spawn1);
+
+        // --- Agent 2 spawn ---
+        Transform spawn2 = GetUniqueSpawn();
+        agent2.ResetAgent(spawn2);
 
         if (showDebugInfo)
         {
-            Debug.Log($"=== NEW EPISODE STARTED === (Total: {totalEpisodes})");
+            Debug.Log($"=== NEW EPISODE STARTED === (#{totalEpisodes})");
+            Debug.Log($"Agent1 spawn: {spawn1.name}");
+            Debug.Log($"Agent2 spawn: {spawn2.name}");
         }
     }
+
 
     public void OnAgentKilled(PaintballAgent killedAgent)
     {
         if (!episodeActive) return;
 
         episodeActive = false;
-        totalEpisodes++;
 
         // Determine winner
         PaintballAgent winner = (killedAgent == agent1) ? agent2 : agent1;
@@ -117,14 +154,13 @@ public class GameController : MonoBehaviour
         if (!episodeActive) return;
 
         episodeActive = false;
-        totalEpisodes++;
         stalemates++;
 
-        Debug.Log($"<color=yellow>STALEMATE!</color> No winner after {maxEpisodeTime}s");
+        Debug.Log($"<color=yellow>STALEMATE!</color>");
 
         // Both agents get timeout penalty
-        agent1.OnTimeout();
-        agent2.OnTimeout();
+        agent1.AddReward(-0.001f);
+        agent2.AddReward(-0.001f);
 
         // Immediate restart for stalemates
         Invoke(nameof(StartNewEpisode), 1f);
