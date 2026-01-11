@@ -38,7 +38,7 @@ public class Bullet : MonoBehaviour
             return;
         }
 
-        Debug.Log("BULLET TRIGGERED: " + other.name);
+       // Debug.Log("BULLET TRIGGERED: " + other.name);
 
         Vector3 direction = bulletRigidBody.velocity.normalized;
 
@@ -53,7 +53,7 @@ public class Bullet : MonoBehaviour
         {
             // Direct hit on agent body!
             hitAgent.TakeDamage(damage);
-            Debug.Log($"<color=red>DIRECT HIT!</color> {hitAgent.name} took {damage} damage!");
+            Debug.Log($"<color=red>DIRECT HIT!</color> {hitAgent.name}");
         }
 
         // Target keresése (for target practice)
