@@ -49,11 +49,19 @@ public class Bullet : MonoBehaviour
         bool isNearMissCollider = other.gameObject.name.Contains("NearMiss") ||
                                    other.gameObject.CompareTag("NearMiss");
 
-        if (hitAgent != null && !isNearMissCollider)
+        if (isNearMissCollider)
         {
-            // Direct hit on agent body!
+            PaintballAgent nearMissAgent = other.GetComponentInParent<PaintballAgent>();
+            
+            return;
+        }
+
+        if (hitAgent != null)
+        {
+            Debug.Log($"<color=orange>HIT REGISTERED:</color> Shooter: {ownerAgent.name} -> Target: {hitAgent.name}");
             hitAgent.TakeDamage(damage);
-            Debug.Log($"<color=red>DIRECT HIT!</color> {hitAgent.name}");
+            Destroy(gameObject); // Találatnál megsemmisül
+            return;
         }
 
         // Target keresése (for target practice)

@@ -96,6 +96,14 @@ public class ShooterController : MonoBehaviour
             thirdPersonController.setRotateOnMove(true);
             animator.SetBool("canAim", false);
             starterAssetsInputs.shoot = false;
-        }
+        } 
     }
+
+
+    public void SetRigWeightImmediate(float weight)
+    {
+        aimRigWeight = weight;
+        if (aimRig != null) aimRig.weight = weight;
+    }
+
 }

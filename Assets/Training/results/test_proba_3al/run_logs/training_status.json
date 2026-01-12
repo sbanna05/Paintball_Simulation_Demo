@@ -1,0 +1,30 @@
+{
+    "PaintballAgent": {
+        "elo": 1166.0648863039598,
+        "checkpoints": [
+            {
+                "steps": 205198,
+                "file_path": "results\\test_proba_3al\\PaintballAgent\\PaintballAgent-205198.onnx",
+                "reward": -2.7818101048469543,
+                "creation_time": 1768207053.4305656,
+                "auxillary_file_paths": [
+                    "results\\test_proba_3al\\PaintballAgent\\PaintballAgent-205198.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 205198,
+            "file_path": "results\\test_proba_3al\\PaintballAgent.onnx",
+            "reward": -2.7818101048469543,
+            "creation_time": 1768207053.4305656,
+            "auxillary_file_paths": [
+                "results\\test_proba_3al\\PaintballAgent\\PaintballAgent-205198.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "1.7.1+cu110"
+    }
+}

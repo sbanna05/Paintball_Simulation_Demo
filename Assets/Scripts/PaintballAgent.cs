@@ -7,6 +7,7 @@ using Unity.MLAgents.Sensors;
 using StarterAssets;
 using Cinemachine;
 using UnityEngine.InputSystem;
+using UnityEngine.Animations.Rigging;
 
 
 public class PaintballAgent : Agent
@@ -15,6 +16,7 @@ public class PaintballAgent : Agent
     [SerializeField] private Transform enemyTransform;
     // GameController automatikusan megkeresve
     private GameController gameController;
+    private RigBuilder rigBuilder;
     [SerializeField] private bool isMLControlled = true;
 
 
@@ -64,7 +66,8 @@ public class PaintballAgent : Agent
         thirdPersonController = GetComponent<ThirdPersonController>();
         starterAssetsInputs = GetComponent<StarterAssetsInputs>();
         shooterController = GetComponent<ShooterController>();
-        animator = GetComponent<Animator>();
+        animator = GetComponent<Animator>(); 
+        rigBuilder = GetComponent<RigBuilder>();
 
         currentHealth = maxHealth;
 
@@ -95,6 +98,9 @@ public class PaintballAgent : Agent
 
     public void ResetAgent(Transform spawnPoint)
     {
+        shooterController.SetRigWeightImmediate(0f);
+        if (rigBuilder != null) rigBuilder.Build();
+
         currentHealth = maxHealth;
         isUnderFire = false;
         underFireTimer = 0f;
@@ -170,12 +176,6 @@ public class PaintballAgent : Agent
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        // Debug: First action to verify ML is controlling
-        if (Time.frameCount % 100 == 0) // Log every 100 frames
-        {
-            //Debug.Log($"{gameObject.name} - ML Action: Move={actions.DiscreteActions[0]}, Rotate={actions.DiscreteActions[1]}");
-        }
-
         // Discrete actions
         int moveAction = actions.DiscreteActions[0]; // 0-4: forward, back, left, right, none
         int rotateAction = actions.DiscreteActions[1]; // 0-2: left, none, right
@@ -266,11 +266,10 @@ public class PaintballAgent : Agent
     private void UpdateAgentMode()
     {
         // Switch to defensive if:
-        // - Low health
         // - Under fire
         // - Enemy has advantage
 
-        if (currentHealth < maxHealth * 0.4f || isUnderFire)
+        if ( isUnderFire)
         {
             if (currentMode != AgentMode.Defensive)
             {
@@ -278,7 +277,7 @@ public class PaintballAgent : Agent
                 AddReward(0.02f); // Reward for smart mode switch
             }
         }
-        else if (currentHealth > maxHealth * 0.7f && enemyVisible)
+        else if (enemyVisible)
         {
             if (currentMode != AgentMode.Offensive)
             {
