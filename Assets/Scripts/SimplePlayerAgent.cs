@@ -61,47 +61,30 @@ public class SimplePlayerAgent : Agent
 
     private IEnumerator SafeSpawn()
     {
-        // Disable CharacterController
-        if (characterController != null)
-        {
-            characterController.enabled = false;
-        }
+        episodeEnding = true; 
 
-        // Wait one frame
-        yield return null;
-
-        // Spawn agent
+        
         if (agentSpawnPoints != null && agentSpawnPoints.Length > 0)
         {
             int idx = Random.Range(0, agentSpawnPoints.Length);
-            if (agentSpawnPoints[idx] != null)
-            {
-                Vector3 pos = agentSpawnPoints[idx].position;
-                pos.y += 0.5f; // Higher safety offset
-                transform.position = pos;
-                transform.rotation = agentSpawnPoints[idx].rotation;
-            }
+
+            
+            transform.position = agentSpawnPoints[idx].position + Vector3.up * 0.5f;
+            transform.rotation = agentSpawnPoints[idx].rotation;
+
+            Physics.SyncTransforms();
         }
 
-        // Spawn target
-        if (targetPlayer != null && targetSpawnPoints != null && targetSpawnPoints.Length > 0)
+        if (targetPlayer != null && targetSpawnPoints.Length > 0)
         {
             int idx = Random.Range(0, targetSpawnPoints.Length);
-            if (targetSpawnPoints[idx] != null)
-            {
-                targetPlayer.position = targetSpawnPoints[idx].position;
-                targetPlayer.rotation = targetSpawnPoints[idx].rotation;
-            }
+            targetPlayer.position = targetSpawnPoints[idx].position;
+            targetPlayer.rotation = targetSpawnPoints[idx].rotation;
         }
 
-        // Wait another frame
-        yield return null;
+        yield return new WaitForFixedUpdate(); // Várjunk egy fizikai ciklust
 
-        // Re-enable CharacterController
-        if (characterController != null)
-        {
-            characterController.enabled = true;
-        }
+        episodeEnding = false; 
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -218,6 +201,8 @@ public class SimplePlayerAgent : Agent
     {
         if (targetPlayer == null)
             return false;
+
+        Debug.Log("enemy visible");
 
         Vector3 origin = transform.position + Vector3.up * 1.5f;
         Vector3 direction = (targetPlayer.position - origin).normalized;
