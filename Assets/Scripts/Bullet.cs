@@ -1,50 +1,87 @@
 ﻿using UnityEngine;
+using System.Collections;
 
 public class Bullet : MonoBehaviour
 {
-    [SerializeField] private float bulletSpeed = 50f;
-    private Rigidbody rb;
-    private Player ownerAgent;
-    private Collider ownerCol;
+    [SerializeField] private Transform vfxHitGreen;
+    [SerializeField] private Transform vfxHitRed;
 
-    private void Awake() => rb = GetComponent<Rigidbody>();
+    [SerializeField] private LayerMask hitLayers;
+    private SimplePlayerAgent owner;
+
+    private Rigidbody bulletRigidBody;
+    private float bulletSpeed = 50f;
+
+    private void Awake()
+    {
+        bulletRigidBody = GetComponent<Rigidbody>();
+    }
 
     private void Start()
     {
-        rb.velocity = transform.forward * bulletSpeed;
-        Destroy(gameObject, 3f);
+        bulletRigidBody.velocity = transform.forward * bulletSpeed;
+        Destroy(gameObject, 2f);
     }
 
-    public void SetOwner(Player owner, Collider col)
+    public void SetOwner(SimplePlayerAgent agent)
     {
-        this.ownerAgent = owner;
-        this.ownerCol = col;
+        owner = agent;
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (other == ownerCol) return;
-
-        // Near Miss (Közelítés)
-        if (other.CompareTag("NearMiss"))
+        if (owner != null)
         {
-            Player victim = other.GetComponentInParent<Player>();
-            if (victim != null && victim != ownerAgent)
-            {
-                victim.RegisterNearMiss();
-            }
-            return; // A golyó menjen tovább a test felé!
+            owner.RegisterHit(other.tag);
+        }
+        else
+        {
+            Debug.LogWarning("no owner");
         }
 
-        // Célpont eltalálása (Statikus vagy mozgó)
-        if (other.CompareTag("Player_2"))
+            Vector3 direction = bulletRigidBody.velocity.normalized;
+
+        // Target keresése a collideren vagy szülõjén
+        Target target = other.GetComponentInParent<Target>();
+
+        RaycastHit hit;
+        // Raycast a pontos találati ponthoz
+        // A hitLayers LayerMask-ot is beiktattuk
+        if (Physics.Raycast(transform.position - direction, direction, out hit, 1f, hitLayers))
         {
-            ownerAgent.OnTargetHit();
-            Destroy(gameObject);
-            return;
+           /* SpawnSplat(
+                target ? vfxHitGreen : vfxHitRed,
+                hit.point,
+                hit.normal,
+                other.transform
+            );*/
+        }
+        else
+        {
+            Vector3 hitPoint = other.ClosestPoint(transform.position);
+            Vector3 hitNormal = (transform.position - hitPoint).normalized;
+
+           /* SpawnSplat(
+                target ? vfxHitGreen : vfxHitRed,
+                hitPoint,
+                hitNormal,
+                other.transform
+            );*/
         }
 
-        // Fal vagy föld
         Destroy(gameObject);
+    }
+
+    private void SpawnSplat(Transform prefab, Vector3 hitPoint, Vector3 hitNormal, Transform hitTransform)
+    {        
+        //Debug.Log("hit object: " + prefab);
+        Quaternion rotation = Quaternion.FromToRotation(Vector3.right, -hitNormal); //right-al talán jó volt
+        //Debug.Log("rotation: " + rotation);
+        Vector3 spawnPos = hitPoint + hitNormal * 0.002f;
+
+        Transform splat = Instantiate(prefab, spawnPos, rotation);
+        //Debug.Log("hittransform: " + hitTransform);
+        // RÖGZÍTÉS A FALHOZ
+        splat.SetParent(hitTransform);
     }
 }
