@@ -7,16 +7,14 @@ using Unity.MLAgents.Sensors;
 using StarterAssets;
 using Cinemachine;
 using UnityEngine.InputSystem;
-using UnityEngine.Animations.Rigging;
 
 
 public class PaintballAgent : Agent
 {
-    [Header("Agent References")]
+    /*[Header("Agent References")]
     [SerializeField] private Transform enemyTransform;
     // GameController automatikusan megkeresve
     private GameController gameController;
-    private RigBuilder rigBuilder;
     [SerializeField] private bool isMLControlled = true;
 
 
@@ -54,6 +52,8 @@ public class PaintballAgent : Agent
     private bool enemyVisible;
     private Vector3 directionToEnemy;
 
+    private Rigidbody rb;
+
     public enum AgentMode
     {
         Offensive,
@@ -66,9 +66,8 @@ public class PaintballAgent : Agent
         thirdPersonController = GetComponent<ThirdPersonController>();
         starterAssetsInputs = GetComponent<StarterAssetsInputs>();
         shooterController = GetComponent<ShooterController>();
-        animator = GetComponent<Animator>(); 
-        rigBuilder = GetComponent<RigBuilder>();
-
+        animator = GetComponent<Animator>();
+        rb = GetComponent<Rigidbody>();
         currentHealth = maxHealth;
 
         // Setup near miss detection
@@ -98,84 +97,63 @@ public class PaintballAgent : Agent
 
     public void ResetAgent(Transform spawnPoint)
     {
-        shooterController.SetRigWeightImmediate(0f);
-        if (rigBuilder != null) rigBuilder.Build();
+        // 1. Rigging azonnali leállítása a Burst hiba ellen
+        if (shooterController != null) shooterController.DisableRigForReset();
 
+        // 2. Értékek nullázása
         currentHealth = maxHealth;
         isUnderFire = false;
         underFireTimer = 0f;
         currentMode = AgentMode.Offensive;
-        lastShootTime = -shootCooldown;
 
-        starterAssetsInputs.move = Vector2.zero;
-        starterAssetsInputs.look = Vector2.zero;
-        starterAssetsInputs.aim = false;
-        starterAssetsInputs.shoot = false;
-        starterAssetsInputs.jump = false;
+        // 3. Mozgás megállítása (Rigidbody nélkül a CharacterControllert kell resetelni)
+        var controller = GetComponent<CharacterController>();
+        if (controller != null) controller.enabled = false; // Kikapcsolás a teleport idejére
 
         transform.position = spawnPoint.position;
         transform.rotation = spawnPoint.rotation;
 
-        Rigidbody rb = GetComponent<Rigidbody>();
-        if (rb != null)
-        {
-            rb.velocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-        }
+        if (controller != null) controller.enabled = true;
+
+        // 4. Rigging visszakapcsolása (adjunk neki egy kis idõt, ha kell)
+        if (shooterController != null) shooterController.EnableRigAfterReset();
     }
 
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        // Update enemy info
+        // 16 MANUAL OBSERVATIONS
+        sensor.AddObservation(currentHealth / maxHealth); // 1
+        sensor.AddObservation(transform.localPosition);   // 3 (Lokális koordináta!)
+        sensor.AddObservation(transform.localRotation.eulerAngles.y / 360f); // 1
+
         if (enemyTransform != null)
         {
-            directionToEnemy = (enemyTransform.position - transform.position);
-            distanceToEnemy = directionToEnemy.magnitude;
-            directionToEnemy.Normalize();
-
-            // Check line of sight
-            enemyVisible = CheckLineOfSight(enemyTransform.position);
-        }
-
-        // 1. Self state (7 observations)
-        sensor.AddObservation(transform.localPosition); // 3
-        sensor.AddObservation(transform.forward); // 3
-        sensor.AddObservation(currentHealth / maxHealth); // 1 (normalized)
-
-        // 2. Enemy information (5 observations)
-        if (enemyTransform != null)
-        {
-            sensor.AddObservation(directionToEnemy); // 3
-            sensor.AddObservation(distanceToEnemy / maxRaycastDistance); // 1 (normalized)
-            sensor.AddObservation(enemyVisible ? 1f : 0f); // 1
+            Vector3 localDirToEnemy = transform.InverseTransformPoint(enemyTransform.position);
+            sensor.AddObservation(localDirToEnemy.normalized); // 3
+            sensor.AddObservation(Vector3.Distance(transform.position, enemyTransform.position) / maxRaycastDistance); // 1
+            sensor.AddObservation(CheckLineOfSight(enemyTransform.position) ? 1f : 0f); // 1
         }
         else
         {
-            sensor.AddObservation(Vector3.zero); // 3
-            sensor.AddObservation(0f); // 1
-            sensor.AddObservation(0f); // 1
+            sensor.AddObservation(new float[5]);
         }
 
-        // 3. Ray Perception Sensor automatically adds environmental observations!
-        // Nincs szükség manuális raycast-okra itt
-
-        // 4. Combat state (3 observations)
         sensor.AddObservation(isUnderFire ? 1f : 0f); // 1
         sensor.AddObservation(starterAssetsInputs.aim ? 1f : 0f); // 1
-        sensor.AddObservation((int)currentMode / 1f); // 1 (0=Offensive, 1=Defensive)
-
-        // 5. Closest cover distance (1 observation)
-        float closestCoverDistance = FindClosestCover();
-        sensor.AddObservation(closestCoverDistance / maxRaycastDistance); // 1
-
-        // Total MANUAL observations: 7 + 5 + 0 + 3 + 1 = 16
-        // Ray Perception Sensor adds automatically: ~35-50 (depending on settings)
-        // TOTAL: ~51-66 observations
+        sensor.AddObservation((int)currentMode / 1f); // 1
+        sensor.AddObservation(FindClosestCover() / maxRaycastDistance); // 1
+        sensor.AddObservation(rb.velocity / 10f); // 3 (Sebesség segít a mozgás tanulásában)
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
+        // Debug: First action to verify ML is controlling
+        if (Time.frameCount % 100 == 0) // Log every 100 frames
+        {
+            //Debug.Log($"{gameObject.name} - ML Action: Move={actions.DiscreteActions[0]}, Rotate={actions.DiscreteActions[1]}");
+        }
+
         // Discrete actions
         int moveAction = actions.DiscreteActions[0]; // 0-4: forward, back, left, right, none
         int rotateAction = actions.DiscreteActions[1]; // 0-2: left, none, right
@@ -266,10 +244,11 @@ public class PaintballAgent : Agent
     private void UpdateAgentMode()
     {
         // Switch to defensive if:
+        // - Low health
         // - Under fire
         // - Enemy has advantage
 
-        if ( isUnderFire)
+        if (currentHealth < maxHealth * 0.4f || isUnderFire)
         {
             if (currentMode != AgentMode.Defensive)
             {
@@ -277,7 +256,7 @@ public class PaintballAgent : Agent
                 AddReward(0.02f); // Reward for smart mode switch
             }
         }
-        else if (enemyVisible)
+        else if (currentHealth > maxHealth * 0.7f && enemyVisible)
         {
             if (currentMode != AgentMode.Offensive)
             {
@@ -333,6 +312,13 @@ public class PaintballAgent : Agent
             gameController.OnAgentKilled(this);
             EndEpisode();
         }
+    }
+    public void RegisterNearMiss(Vector3 bulletPosition)
+    {
+        isUnderFire = true;
+        underFireTimer = 0f;
+        AddReward(-0.05f);
+        Debug.Log($"{gameObject.name} - Near miss registered!");
     }
 
     // Called by GameController when this agent wins
@@ -438,5 +424,5 @@ public class PaintballAgent : Agent
     // Getters
     public float GetHealth() => currentHealth;
     public AgentMode GetMode() => currentMode;
-    public bool IsUnderFire() => isUnderFire;
+    public bool IsUnderFire() => isUnderFire;*/
 }
