@@ -93,6 +93,7 @@ public class SimplePlayerAgent : Agent
         if (isSpawning) return;
 
         episodeTimer += Time.fixedDeltaTime;
+        float distance = Vector3.Distance(transform.position, targetPlayer.position);
 
         // --- Mozgás és Irányítás ---
         float moveX = actions.ContinuousActions[0];
@@ -112,10 +113,20 @@ public class SimplePlayerAgent : Agent
             inputs.shoot = shouldShoot;
         }
 
-        // Az OnActionReceived-ben:
+        // 1. Büntetés, ha túl közel megy
+        if (distance < 3f)
+        {
+            AddReward(-0.01f); 
+        }
+        
+        else if (distance > 7f && distance < 15f)
+        {
+            AddReward(0.005f); 
+        }
+
         if (shouldShoot)
         {
-            AddReward(-0.05f); // Minden lövés "pénzbe kerül"
+            AddReward(-0.01f); 
         }
 
         AddReward(-0.0001f);
@@ -134,7 +145,7 @@ public class SimplePlayerAgent : Agent
 
         if (episodeTimer >= maxEpisodeTime)
         {
-            AddReward(-1f);
+            AddReward(-5f);
             Debug.Log("timeout");
             EndEpisode();
         }
@@ -164,7 +175,7 @@ public class SimplePlayerAgent : Agent
 
         if (tag == targetTag)
         {
-            AddReward(3f); // Nagy jutalom a gyõzelemért
+            AddReward(12f); // Nagy jutalom a gyõzelemért
             Debug.Log("<color=green>TALÁLAT!</color>");
             EndEpisode();
         }

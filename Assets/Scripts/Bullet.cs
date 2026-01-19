@@ -72,24 +72,24 @@ public class Bullet : MonoBehaviour
         RaycastHit hit;
         if (Physics.Raycast(transform.position - direction * 0.5f, direction, out hit, 1f, hitLayers))
         {
-            /*SpawnSplat(
+            SpawnSplat(
                 hitTarget ? vfxHitGreen : vfxHitRed,
                 hit.point,
                 hit.normal,
                 other.transform
-            );*/
+            );
         }
         else
         {
             Vector3 hitPoint = other.ClosestPoint(transform.position);
             Vector3 hitNormal = (transform.position - hitPoint).normalized;
 
-            /*SpawnSplat(
+            SpawnSplat(
                 hitTarget ? vfxHitGreen : vfxHitRed,
                 hitPoint,
                 hitNormal,
                 other.transform
-            );*/
+            );
         }
 
     }
