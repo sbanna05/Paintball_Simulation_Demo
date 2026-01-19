@@ -112,19 +112,23 @@ public class SimplePlayerAgent : Agent
             inputs.shoot = shouldShoot;
         }
 
+        // Az OnActionReceived-ben:
+        if (shouldShoot)
+        {
+            AddReward(-0.05f); // Minden lövés "pénzbe kerül"
+        }
 
         AddReward(-0.0001f);
 
         if (IsEnemyVisible())
         {
-            AddReward(0.05f); 
-
-            // 3. Pontos célzás jutalma
             Vector3 dirToTarget = (targetPlayer.position - transform.position).normalized;
             float dot = Vector3.Dot(transform.forward, dirToTarget);
-            if (dot > 0.95f && shouldAim)
+
+            // Minél pontosabban néz rá, annál több pont (0.0 és 0.1 között)
+            if (dot > 0)
             {
-                AddReward(0.01f); // Ha pontosan felé néz és céloz is
+                AddReward(dot * 0.05f);
             }
         }
 
@@ -166,7 +170,7 @@ public class SimplePlayerAgent : Agent
         }
         else if (tag == "NearMiss")
         {
-            AddReward(1f); // Biztatás a közeli lövésért
+            AddReward(0.3f); 
             Debug.Log("<color=yellow>MAJDNEM! (Near Miss)</color>");
         }
         else
