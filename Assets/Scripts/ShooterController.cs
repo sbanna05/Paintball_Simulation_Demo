@@ -27,26 +27,31 @@ public class ShooterController : MonoBehaviour
 
     private void LateUpdate()
     {
+        if (agent == null || inputs == null || this == null) return;
+
         Vector3 targetPoint;
 
-        if (agent.StepCount > 0 && !agent.IsHeuristic())
-        {
+        if (!agent.IsHeuristic())
+        {            
             targetPoint = transform.position + transform.forward * 50f;
         }
         else
         {
-            Vector2 screenCenter = new Vector2(Screen.width / 2f, Screen.height / 2f);
-            Ray ray = Camera.main.ScreenPointToRay(screenCenter);
-            targetPoint = ray.origin + ray.direction * 50f;
-
-            if (Physics.Raycast(ray, out RaycastHit hit, 999f, aimColliderLayerMask))
+            // Csak kézi tesztelésnél (Heuristic) engedjük meg a kamerát
+            if (Camera.main != null)
             {
-                targetPoint = hit.point;
+                Vector2 screenCenter = new Vector2(Screen.width / 2f, Screen.height / 2f);
+                Ray ray = Camera.main.ScreenPointToRay(screenCenter);
+                targetPoint = Physics.Raycast(ray, out RaycastHit hit, 999f, aimColliderLayerMask)
+                              ? hit.point : ray.origin + ray.direction * 50f;
             }
+            else targetPoint = transform.position + transform.forward * 50f;
         }
 
-        // Rigging célpont frissítése
-        aimTargetTransform.position = Vector3.Lerp(aimTargetTransform.position, targetPoint, Time.deltaTime * 25f);
+        if (aimTargetTransform != null)
+        {
+            aimTargetTransform.position = Vector3.Lerp(aimTargetTransform.position, targetPoint, Time.deltaTime * 25f);
+        }
 
         float targetWeight = inputs.aim ? 1f : 0f;
         aimRig.weight = Mathf.Lerp(aimRig.weight, targetWeight, Time.deltaTime * 10f);
