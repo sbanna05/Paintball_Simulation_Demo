@@ -5,121 +5,69 @@ using UnityEngine.Animations.Rigging;
 
 public class ShooterController : MonoBehaviour
 {
-    [Header("Camera & Sensitivity")]
-    [SerializeField] private CinemachineVirtualCamera aimVirtualCamera;
-    [SerializeField] private float normalSensitivity = 0.5f;
-    [SerializeField] private float aimSensitivity = 0.8f;
+    [Header("Rigging & Aim")]
+    [SerializeField] private Rig aimRig;
+    [SerializeField] private Transform aimTargetTransform;
     [SerializeField] private LayerMask aimColliderLayerMask;
 
     [Header("Shooting")]
-    [SerializeField] private Transform bullet;
+    [SerializeField] private Transform bulletPrefab;
     [SerializeField] private Transform spawnpoint;
-    [SerializeField] private float shootCooldown = 0.4f;
+    [SerializeField] private float shootCooldown = 0.3f;
 
-    [Header("Rigging")]
-    [SerializeField] private Rig aimRig;
-
-    private ThirdPersonController thirdPersonController;
-    public StarterAssetsInputs starterAssetsInputs;
-    private Animator animator;
+    private StarterAssetsInputs inputs;
     private SimplePlayerAgent agent;
-
-    private float aimRigWeight;
     private float lastShootTime;
 
     private void Awake()
     {
-        thirdPersonController = GetComponent<ThirdPersonController>();
-        starterAssetsInputs = GetComponent<StarterAssetsInputs>();
-        animator = GetComponent<Animator>();
+        inputs = GetComponent<StarterAssetsInputs>();
         agent = GetComponent<SimplePlayerAgent>();
     }
 
-    private void Update()
+    private void LateUpdate()
     {
-        // Smooth rig weight
-        aimRigWeight = starterAssetsInputs.aim ? 1f : 0f;
+        Vector3 targetPoint;
 
-        if (aimRig != null)
+        if (agent.StepCount > 0 && !agent.IsHeuristic())
         {
-            aimRig.weight = Mathf.Lerp(aimRig.weight, aimRigWeight, Time.deltaTime * 20f);
+            targetPoint = transform.position + transform.forward * 50f;
         }
-
-        if (animator != null)
+        else
         {
-            animator.SetLayerWeight(1, aimRig != null ? aimRig.weight : aimRigWeight);
-            animator.SetBool("canAim", starterAssetsInputs.aim);
-        }
+            Vector2 screenCenter = new Vector2(Screen.width / 2f, Screen.height / 2f);
+            Ray ray = Camera.main.ScreenPointToRay(screenCenter);
+            targetPoint = ray.origin + ray.direction * 50f;
 
-        // Camera
-        if (aimVirtualCamera != null)
-        {
-            aimVirtualCamera.gameObject.SetActive(starterAssetsInputs.aim);
-        }
-
-        // ThirdPersonController settings
-        if (thirdPersonController != null)
-        {
-            thirdPersonController.setSensitivity(starterAssetsInputs.aim ? aimSensitivity : normalSensitivity);
-            thirdPersonController.setRotateOnMove(!starterAssetsInputs.aim);
-        }
-
-        // Get aim point
-        Vector3 aimPoint = GetAimPoint();
-
-        // Rotate towards aim when aiming
-        if (starterAssetsInputs.aim)
-        {
-            Vector3 lookDir = aimPoint - transform.position;
-            lookDir.y = 0f;
-
-            if (lookDir.sqrMagnitude > 0.01f)
+            if (Physics.Raycast(ray, out RaycastHit hit, 999f, aimColliderLayerMask))
             {
-                transform.forward = Vector3.Lerp(transform.forward, lookDir.normalized, Time.deltaTime * 20f);
+                targetPoint = hit.point;
             }
         }
 
-        // Shooting with cooldown
-        if (starterAssetsInputs.shoot && Time.time >= lastShootTime + shootCooldown)
+        // Rigging célpont frissítése
+        aimTargetTransform.position = Vector3.Lerp(aimTargetTransform.position, targetPoint, Time.deltaTime * 25f);
+
+        float targetWeight = inputs.aim ? 1f : 0f;
+        aimRig.weight = Mathf.Lerp(aimRig.weight, targetWeight, Time.deltaTime * 10f);
+
+        if (inputs.aim && inputs.shoot && Time.time >= lastShootTime + shootCooldown)
         {
-            Shoot(aimPoint);
+            Shoot(targetPoint);
             lastShootTime = Time.time;
-            starterAssetsInputs.shoot = false; // Reset
+            inputs.shoot = false;
         }
     }
 
-    private Vector3 GetAimPoint()
+    private void Shoot(Vector3 targetPoint)
     {
-        Vector2 screenCenter = new Vector2(Screen.width / 2f, Screen.height / 2f);
-        Ray ray = Camera.main.ScreenPointToRay(screenCenter);
-        Vector3 defaultPoint = transform.position + transform.forward * 20f;
+        // A lövés iránya a fegyver csövétõl a Rigging célpontja felé
+        Vector3 shootDir = (targetPoint - spawnpoint.position).normalized;
+        Transform b = Instantiate(bulletPrefab, spawnpoint.position, Quaternion.LookRotation(shootDir));
 
-        if (Physics.Raycast(ray, out RaycastHit hit, 999f, aimColliderLayerMask))
-        {
-            return hit.point;
-        }
-
-        return defaultPoint;
-    }
-
-    private void Shoot(Vector3 aimPoint)
-    {
-        if (bullet == null || spawnpoint == null)
-            return;
-
-        Vector3 shootDir = (aimPoint - spawnpoint.position).normalized;
-        GameObject bulletInstance = Instantiate(bullet.gameObject, spawnpoint.position, Quaternion.LookRotation(shootDir, Vector3.up));
-
-        // Set owner
-        Bullet bulletScript = bulletInstance.GetComponent<Bullet>();
-        if (bulletScript != null && agent != null)
+        if (b.TryGetComponent<Bullet>(out var bulletScript))
         {
             bulletScript.SetOwner(agent);
-        }
-
-        if (animator != null)
-        {
-            animator.SetTrigger("shoot");
         }
     }
 }

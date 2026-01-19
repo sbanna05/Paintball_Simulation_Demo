@@ -1,16 +1,14 @@
 ﻿using UnityEngine;
-using System.Collections;
 
 public class Bullet : MonoBehaviour
 {
     [SerializeField] private Transform vfxHitGreen;
     [SerializeField] private Transform vfxHitRed;
-
     [SerializeField] private LayerMask hitLayers;
-    private SimplePlayerAgent owner;
 
     private Rigidbody bulletRigidBody;
     private float bulletSpeed = 50f;
+    private SimplePlayerAgent ownerAgent;
 
     private void Awake()
     {
@@ -19,38 +17,63 @@ public class Bullet : MonoBehaviour
 
     private void Start()
     {
-        bulletRigidBody.velocity = transform.forward * bulletSpeed;
-        Destroy(gameObject, 2f);
+        if (bulletRigidBody != null)
+        {
+            bulletRigidBody.velocity = transform.forward * bulletSpeed;
+        }
+        Destroy(gameObject, 3f);
     }
 
     public void SetOwner(SimplePlayerAgent agent)
     {
-        owner = agent;
+        ownerAgent = agent;
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        if (owner != null)
+        //Debug.Log($"BULLET HIT: {other.name} (Tag: {other.tag})");
+
+        if (bulletRigidBody == null)
+            return;
+
+        if (other.transform.IsChildOf(ownerAgent.transform)) return;
+
+        //Debug.Log("Ütközés: " + other.name + " Layer: "  + LayerMask.LayerToName(other.gameObject.layer));
+        //ownerAgent.RegisterHit(other.tag, other.gameObject);
+
+        Vector3 direction = bulletRigidBody.velocity.normalized;
+
+        // Check what we hit
+        bool hitTarget = other.CompareTag("Player_2"); // Direct hit on target
+        bool hitNearMiss = other.CompareTag("NearMiss"); // Near miss
+
+        // Near miss
+        if (hitNearMiss && ownerAgent != null)
         {
-            owner.RegisterHit(other.tag);
+            //Debug.Log("NEAR MISS!");
+            ownerAgent.RegisterHit("NearMiss", other.gameObject);
+            return;
         }
-        else
+        else if (hitTarget)
         {
-            Debug.LogWarning("no owner");
+
+            //Debug.Log("DIRECT HIT ON TARGET!");
+            ownerAgent.RegisterHit("Player_2", other.gameObject);
+            Destroy(gameObject);
+            return;
+        }
+        else if (!other.isTrigger)
+        {
+            ownerAgent.RegisterHit(other.tag, other.gameObject);
+            Destroy(gameObject);
         }
 
-            Vector3 direction = bulletRigidBody.velocity.normalized;
-
-        // Target keresése a collideren vagy szülõjén
-        Target target = other.GetComponentInParent<Target>();
-
+        // Spawn visual effect
         RaycastHit hit;
-        // Raycast a pontos találati ponthoz
-        // A hitLayers LayerMask-ot is beiktattuk
-        if (Physics.Raycast(transform.position - direction, direction, out hit, 1f, hitLayers))
+        if (Physics.Raycast(transform.position - direction * 0.5f, direction, out hit, 1f, hitLayers))
         {
-           /* SpawnSplat(
-                target ? vfxHitGreen : vfxHitRed,
+            /*SpawnSplat(
+                hitTarget ? vfxHitGreen : vfxHitRed,
                 hit.point,
                 hit.normal,
                 other.transform
@@ -61,27 +84,27 @@ public class Bullet : MonoBehaviour
             Vector3 hitPoint = other.ClosestPoint(transform.position);
             Vector3 hitNormal = (transform.position - hitPoint).normalized;
 
-           /* SpawnSplat(
-                target ? vfxHitGreen : vfxHitRed,
+            /*SpawnSplat(
+                hitTarget ? vfxHitGreen : vfxHitRed,
                 hitPoint,
                 hitNormal,
                 other.transform
             );*/
         }
 
-        Destroy(gameObject);
     }
 
     private void SpawnSplat(Transform prefab, Vector3 hitPoint, Vector3 hitNormal, Transform hitTransform)
-    {        
-        //Debug.Log("hit object: " + prefab);
-        Quaternion rotation = Quaternion.FromToRotation(Vector3.right, -hitNormal); //right-al talán jó volt
-        //Debug.Log("rotation: " + rotation);
+    {
+       Quaternion rotation = Quaternion.LookRotation(-hitNormal);
         Vector3 spawnPos = hitPoint + hitNormal * 0.002f;
-
         Transform splat = Instantiate(prefab, spawnPos, rotation);
-        //Debug.Log("hittransform: " + hitTransform);
-        // RÖGZÍTÉS A FALHOZ
-        splat.SetParent(hitTransform);
+
+        if (hitTransform != null)
+        {
+            splat.SetParent(hitTransform);
+        }
+
+        Destroy(splat.gameObject, 10f);
     }
 }
