@@ -320,6 +320,12 @@ namespace StarterAssets
             Gizmos.DrawSphere(new Vector3(transform.position.x, transform.position.y - GroundedOffset, transform.position.z), GroundedRadius);
         }
 
+        public void SetRotation(float yaw)
+        {
+            _cinemachineTargetYaw = yaw;
+            transform.rotation = Quaternion.Euler(0.0f, yaw, 0.0f);
+        }
+
         public void setSensitivity(float newSensitivity)
         {
             Sensitivity = newSensitivity;
