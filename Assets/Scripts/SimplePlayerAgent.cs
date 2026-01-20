@@ -9,6 +9,7 @@ public class SimplePlayerAgent : Agent
 {
     [Header("References")]
     [SerializeField] private Transform targetPlayer;
+    [SerializeField] private Transform aimTargetTransform;
 
     [Header("Spawn Settings")]
     [SerializeField] private Transform[] agentSpawnPoints;
@@ -34,6 +35,8 @@ public class SimplePlayerAgent : Agent
 
     public bool IsHeuristic() => StepCount <= 0 || CompletedEpisodes == 0;
 
+    public void OnShotFired() { AddReward(-0.01f); }
+
     public override void OnEpisodeBegin()
     {
         episodeTimer = 0f;
@@ -43,19 +46,17 @@ public class SimplePlayerAgent : Agent
     private IEnumerator SafeSpawn()
     {
         isSpawning = true;
+        if (characterController != null) characterController.enabled = false;
+
+        yield return new WaitForFixedUpdate();
 
         if (agentSpawnPoints != null && agentSpawnPoints.Length > 0)
         {
             int idx = Random.Range(0, agentSpawnPoints.Length);
-            if (characterController != null) characterController.enabled = false;
-
             transform.position = agentSpawnPoints[idx].position;
             transform.rotation = agentSpawnPoints[idx].rotation;
-
-            if (characterController != null) characterController.enabled = true;
         }
 
-        // Célpont (Target) teleportálása
         if (targetPlayer != null && targetSpawnPoints != null && targetSpawnPoints.Length > 0)
         {
             int idx = Random.Range(0, targetSpawnPoints.Length);
@@ -63,18 +64,14 @@ public class SimplePlayerAgent : Agent
             targetPlayer.rotation = targetSpawnPoints[idx].rotation;
         }
 
-        // Fizikai motor frissítése, hogy az ütközõk ne maradjanak a régi helyükön
         Physics.SyncTransforms();
-        yield return new WaitForFixedUpdate();
-
+        if (characterController != null) characterController.enabled = true;
         isSpawning = false;
     }
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        // Alapvetõ irányok és távolságok (6 observation)
         sensor.AddObservation(transform.forward);
-
         if (targetPlayer != null)
         {
             Vector3 toTarget = (targetPlayer.position - transform.position);
@@ -95,10 +92,10 @@ public class SimplePlayerAgent : Agent
         episodeTimer += Time.fixedDeltaTime;
         float distance = Vector3.Distance(transform.position, targetPlayer.position);
 
-        // --- Mozgás és Irányítás ---
         float moveX = actions.ContinuousActions[0];
         float moveZ = actions.ContinuousActions[1];
         float rotateY = actions.ContinuousActions[2];
+        float aimVertical = actions.ContinuousActions[3];
 
         bool shouldAim = actions.DiscreteActions[0] == 1;
         bool shouldShoot = actions.DiscreteActions[1] == 1;
@@ -106,28 +103,21 @@ public class SimplePlayerAgent : Agent
         if (inputs != null)
         {
             inputs.move = new Vector2(moveX, moveZ);
-            // Az ágens forgatása (Mouse X helyett ML action)
             transform.Rotate(Vector3.up, rotateY * 5f);
-
             inputs.aim = shouldAim;
             inputs.shoot = shouldShoot;
         }
 
-        // 1. Büntetés, ha túl közel megy
-        if (distance < 3f)
+        if (aimTargetTransform != null)
         {
-            AddReward(-0.01f); 
-        }
-        
-        else if (distance > 7f && distance < 15f)
-        {
-            AddReward(0.005f); 
+            Vector3 localPos = aimTargetTransform.localPosition;
+            localPos.y = Mathf.Clamp(localPos.y + aimVertical * 0.1f, 0.5f, 2.5f);
+            aimTargetTransform.localPosition = localPos;
         }
 
-        if (shouldShoot)
-        {
-            AddReward(-0.01f); 
-        }
+        // --- Distance Reward & Penalty ---
+        if (distance < 3f) AddReward(-0.01f);
+        else if (distance > 7f && distance < 15f) AddReward(0.005f);
 
         AddReward(-0.0001f);
 
@@ -135,18 +125,12 @@ public class SimplePlayerAgent : Agent
         {
             Vector3 dirToTarget = (targetPlayer.position - transform.position).normalized;
             float dot = Vector3.Dot(transform.forward, dirToTarget);
-
-            // Minél pontosabban néz rá, annál több pont (0.0 és 0.1 között)
-            if (dot > 0)
-            {
-                AddReward(dot * 0.05f);
-            }
+            if (dot > 0) AddReward(dot * 0.05f);
         }
 
         if (episodeTimer >= maxEpisodeTime)
         {
             AddReward(-5f);
-            Debug.Log("timeout");
             EndEpisode();
         }
     }
@@ -161,9 +145,7 @@ public class SimplePlayerAgent : Agent
             if (ray.HitGameObject != null)
             {
                 if (ray.HitGameObject.CompareTag(targetTag) || ray.HitGameObject.CompareTag("NearMiss"))
-                {
                     return true;
-                }
             }
         }
         return false;
@@ -196,6 +178,7 @@ public class SimplePlayerAgent : Agent
         cont[0] = Input.GetAxis("Horizontal");
         cont[1] = Input.GetAxis("Vertical");
         cont[2] = Input.GetAxis("Mouse X");
+        cont[3] = Input.GetAxis("Mouse Y");
 
         var disc = actionsOut.DiscreteActions;
         disc[0] = Input.GetMouseButton(1) ? 1 : 0;

@@ -1,5 +1,4 @@
 using UnityEngine;
-using Cinemachine;
 using StarterAssets;
 using UnityEngine.Animations.Rigging;
 
@@ -27,28 +26,31 @@ public class ShooterController : MonoBehaviour
 
     private void LateUpdate()
     {
-        if (agent == null || inputs == null || this == null) return;
+        if (agent == null || inputs == null) return;
 
         Vector3 targetPoint;
 
-        if (!agent.IsHeuristic())
-        {            
-            targetPoint = transform.position + transform.forward * 50f;
+        if (agent.IsHeuristic())
+        {
+            // AI MODE: A sárga gömb pozícióját követi, amit az Agent mozgat
+            targetPoint = aimTargetTransform.position;
         }
         else
         {
-            // Csak kézi tesztelésnél (Heuristic) engedjük meg a kamerát
+            // HEURISTIC MODE: Kamera alapú célzás
             if (Camera.main != null)
             {
                 Vector2 screenCenter = new Vector2(Screen.width / 2f, Screen.height / 2f);
                 Ray ray = Camera.main.ScreenPointToRay(screenCenter);
                 targetPoint = Physics.Raycast(ray, out RaycastHit hit, 999f, aimColliderLayerMask)
                               ? hit.point : ray.origin + ray.direction * 50f;
+
+                aimTargetTransform.position = Vector3.Lerp(aimTargetTransform.position, targetPoint, Time.deltaTime * 25f);
             }
             else targetPoint = transform.position + transform.forward * 50f;
         }
 
-        if (aimTargetTransform != null)
+        if (aimTargetTransform != null && agent.IsHeuristic())
         {
             aimTargetTransform.position = Vector3.Lerp(aimTargetTransform.position, targetPoint, Time.deltaTime * 25f);
         }
@@ -58,7 +60,7 @@ public class ShooterController : MonoBehaviour
 
         if (inputs.aim && inputs.shoot && Time.time >= lastShootTime + shootCooldown)
         {
-            Shoot(targetPoint);
+            Shoot(aimTargetTransform.position);
             lastShootTime = Time.time;
             inputs.shoot = false;
         }
@@ -66,7 +68,6 @@ public class ShooterController : MonoBehaviour
 
     private void Shoot(Vector3 targetPoint)
     {
-        // A lövés iránya a fegyver csövétõl a Rigging célpontja felé
         Vector3 shootDir = (targetPoint - spawnpoint.position).normalized;
         Transform b = Instantiate(bulletPrefab, spawnpoint.position, Quaternion.LookRotation(shootDir));
 
@@ -74,5 +75,7 @@ public class ShooterController : MonoBehaviour
         {
             bulletScript.SetOwner(agent);
         }
+
+        agent.OnShotFired();
     }
 }

@@ -19,7 +19,7 @@ behaviors:
         strength: 1.0
       curiosity:
         gamma: 0.99
-        strength: 0.1
+        strength: 0.2
         encoding_size: 128
     max_steps: 2500000
     time_horizon: 1000
