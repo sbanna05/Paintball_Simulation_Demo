@@ -44,7 +44,7 @@ public class Bullet : MonoBehaviour
         Vector3 direction = bulletRigidBody.velocity.normalized;
 
         // Check what we hit
-        bool hitTarget = other.CompareTag("Player_2"); // Direct hit on target
+        bool hitTarget = other.CompareTag("Player"); // Direct hit on target
         bool hitNearMiss = other.CompareTag("NearMiss"); // Near miss
 
         // Near miss
@@ -54,13 +54,13 @@ public class Bullet : MonoBehaviour
             ownerAgent.RegisterHit("NearMiss", other.gameObject);
             return;
         }
-        else if (hitTarget)
+        if (hitTarget)
         {
+            ownerAgent.RegisterHit("Player", other.gameObject);
+            SimplePlayerAgent victim = other.GetComponent<SimplePlayerAgent>();
+            if (victim != null) victim.GetHit();
 
-            //Debug.Log("DIRECT HIT ON TARGET!");
-            ownerAgent.RegisterHit("Player_2", other.gameObject);
             Destroy(gameObject);
-            return;
         }
         else if (!other.isTrigger)
         {
