@@ -12,7 +12,7 @@ behaviors:
     network_settings:
       normalize: true
       hidden_units: 256
-      num_layers: 2
+      num_layers: 3
     reward_signals:
       extrinsic:
         gamma: 0.99
@@ -23,10 +23,10 @@ behaviors:
         encoding_size: 128
     self_play:
       window: 10
-      play_against_latest_model_ratio: 0.5
-      save_steps: 20000
-      swap_steps: 10000
-      team_change: 100000
+      play_against_latest_model_ratio: 0.7
+      save_steps: 40000
+      swap_steps: 20000
+      team_change: 200000
     max_steps: 3000000
     time_horizon: 1000
     summary_freq: 10000

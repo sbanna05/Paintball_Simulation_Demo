@@ -35,7 +35,7 @@ behaviors:
           deterministic: false
       curiosity:
         gamma: 0.99
-        strength: 0.2
+        strength: 0.1
         network_settings:
           normalize: false
           hidden_units: 128
@@ -48,12 +48,18 @@ behaviors:
         encoding_size: 128
     init_path: null
     keep_checkpoints: 5
-    checkpoint_interval: 50000
-    max_steps: 2500000
+    checkpoint_interval: 500000
+    max_steps: 3000000
     time_horizon: 1000
     summary_freq: 10000
     threaded: true
-    self_play: null
+    self_play:
+      save_steps: 40000
+      team_change: 200000
+      swap_steps: 20000
+      window: 10
+      play_against_latest_model_ratio: 0.7
+      initial_elo: 1200.0
     behavioral_cloning: null
 env_settings:
   env_path: null
@@ -75,7 +81,7 @@ engine_settings:
   no_graphics: false
 environment_parameters: null
 checkpoint_settings:
-  run_id: twoagent_01
+  run_id: twoagent_with_prev_02
   initialize_from: null
   load_model: false
   resume: false

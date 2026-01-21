@@ -1,0 +1,57 @@
+{
+    "DoubleAgent": {
+        "checkpoints": [
+            {
+                "steps": 499060,
+                "file_path": "results\\twoagent_with_prev_02\\DoubleAgent\\DoubleAgent-499060.onnx",
+                "reward": 161.8449386358261,
+                "creation_time": 1769004184.3258688,
+                "auxillary_file_paths": [
+                    "results\\twoagent_with_prev_02\\DoubleAgent\\DoubleAgent-499060.pt"
+                ]
+            },
+            {
+                "steps": 999603,
+                "file_path": "results\\twoagent_with_prev_02\\DoubleAgent\\DoubleAgent-999603.onnx",
+                "reward": 358.81481497628346,
+                "creation_time": 1769007778.964645,
+                "auxillary_file_paths": [
+                    "results\\twoagent_with_prev_02\\DoubleAgent\\DoubleAgent-999603.pt"
+                ]
+            },
+            {
+                "steps": 1499896,
+                "file_path": "results\\twoagent_with_prev_02\\DoubleAgent\\DoubleAgent-1499896.onnx",
+                "reward": 402.1465382575989,
+                "creation_time": 1769011508.8059134,
+                "auxillary_file_paths": [
+                    "results\\twoagent_with_prev_02\\DoubleAgent\\DoubleAgent-1499896.pt"
+                ]
+            },
+            {
+                "steps": 1655140,
+                "file_path": "results\\twoagent_with_prev_02\\DoubleAgent\\DoubleAgent-1655140.onnx",
+                "reward": null,
+                "creation_time": 1769012673.6873024,
+                "auxillary_file_paths": [
+                    "results\\twoagent_with_prev_02\\DoubleAgent\\DoubleAgent-1655140.pt"
+                ]
+            }
+        ],
+        "elo": 1057.6876304221737,
+        "final_checkpoint": {
+            "steps": 1655140,
+            "file_path": "results\\twoagent_with_prev_02\\DoubleAgent.onnx",
+            "reward": null,
+            "creation_time": 1769012673.6873024,
+            "auxillary_file_paths": [
+                "results\\twoagent_with_prev_02\\DoubleAgent\\DoubleAgent-1655140.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "1.7.1+cu110"
+    }
+}
