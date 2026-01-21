@@ -68,7 +68,6 @@ public class SimplePlayerAgent : Agent
             transform.SetPositionAndRotation(agentSpawnPoints[idx].position, agentSpawnPoints[idx].rotation);
         }
 
-        // Célzó gömb kényszerítése az ágens elé (lokális koordinátákban)
         if (aimTargetTransform != null) aimTargetTransform.localPosition = new Vector3(0, 1.5f, 10f);
 
         Physics.SyncTransforms();
@@ -138,7 +137,7 @@ public class SimplePlayerAgent : Agent
             }
             else if (distance > 8f && distance < 18f)
             {
-                AddReward(0.02f);
+                AddReward(0.1f);
             }
 
             if (IsEnemyVisible())
@@ -152,7 +151,7 @@ public class SimplePlayerAgent : Agent
 
                     if (shouldAim)
                     {
-                        AddReward(0.02f);
+                        AddReward(0.05f);
                     }
                 }
             }
@@ -198,7 +197,7 @@ public class SimplePlayerAgent : Agent
 
         if (tag == targetTag)
         {
-            AddReward(15f);
+            AddReward(20f);
             Debug.Log("<color=green>DIRECT HIT!</color>");
             EndEpisode();
         }
