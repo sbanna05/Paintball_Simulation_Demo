@@ -24,9 +24,9 @@ behaviors:
       gail:
         gamma: 0.99
         strength: 0.1
-        demo_path: Demonstrations/DoubleAgentDemo.demo
+        demo_path: C:\Users\Anna\Documents\tananyagok\Egyetemes\5th\szakdoga\Paintball_Simulation_Demo\Assets\Demonstrations\DoubleAgentDemo.demo
     behavioral_cloning:
-      demo_path: Demonstrations/DoubleAgentDemo.demo
+      demo_path: C:\Users\Anna\Documents\tananyagok\Egyetemes\5th\szakdoga\Paintball_Simulation_Demo\Assets\Demonstrations\DoubleAgentDemo.demo
       strength: 0.5 # Mennyire erősen próbálja másolni a játékost
       steps: 100000 # Hány lépésig tartson az intenzív utánzás
     self_play:
