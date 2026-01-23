@@ -80,7 +80,7 @@ public class ShooterController : MonoBehaviour
         {
             Shoot();
             _lastShootTime = Time.time;
-            _inputs.shoot = false; // Input reset
+            _inputs.shoot = false;
         }
     }
 

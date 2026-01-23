@@ -224,7 +224,10 @@ public class SimplePlayerAgent : Agent
         }
         else if (tag == "NearMiss")
         {
-            AddReward(0.5f);
+            SimplePlayerAgent targetAgent = hitObject.GetComponentInParent<SimplePlayerAgent>();
+            if (targetAgent != null && targetAgent != this)
+                AddReward(0.5f);            
+
             Debug.Log("<color=yellow>NEAR MISS!</color>");
         }
         else
