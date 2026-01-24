@@ -138,17 +138,30 @@ public class Player : Agent
             inputs.look = new Vector2(lookX, lookY);
             inputs.aim = shouldAim;
             inputs.shoot = shouldShoot;
-            inputs.jump = shouldJump && characterController.isGrounded;
-            inputs.sprint = shouldSprint;           
+            inputs.jump = shouldJump;
+            inputs.sprint = shouldSprint;
+
+            if (shouldJump && characterController.isGrounded)
+            {
+                AddReward(-0.05f);
+            }
         }
 
-        AddReward(-0.0002f); 
+        AddReward(-0.0002f);
 
-        if (inputs.aim && enemyTarget != null)
+        if (enemyTarget != null)
         {
-            Vector3 toEnemy = (enemyTarget.position - transform.position).normalized;
-            float dot = Vector3.Dot(transform.forward, toEnemy);
-            if (dot > 0.96f) AddReward(0.01f);
+            float distance = Vector3.Distance(transform.position, enemyTarget.position);
+
+            if (distance < 5f) AddReward(-0.01f);
+            else if (distance > 8f && distance < 15f) AddReward(0.005f);
+
+            if (shouldAim && IsEnemyVisible())
+            {
+                Vector3 toEnemy = (enemyTarget.position - transform.position).normalized;
+                float dot = Vector3.Dot(transform.forward, toEnemy);
+                if (dot > 0.96f) AddReward(0.01f);
+            }
         }
 
         if (episodeTimer >= maxEpisodeTime)
@@ -167,6 +180,24 @@ public class Player : Agent
         AddReward(-25.0f);
         Debug.Log(gameObject.name + ": <color=red>ELTALÁLTAK</color>");
         EndEpisode();
+    }
+
+    private bool IsEnemyVisible()
+    {
+        if (raySensor == null) return false;
+
+        var rayOutputs = RayPerceptionSensor.Perceive(raySensor.GetRayPerceptionInput()).RayOutputs;
+        foreach (var ray in rayOutputs)
+        {
+            if (ray.HitGameObject != null)
+            {
+                if (ray.HitGameObject.CompareTag(targetTag) || ray.HitGameObject.CompareTag("NearMiss"))
+                {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     public void RegisterHit(string tag, GameObject hitObject)
