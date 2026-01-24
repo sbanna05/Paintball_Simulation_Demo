@@ -8,7 +8,7 @@ public class Bullet : MonoBehaviour
 
     private Rigidbody bulletRigidBody;
     private float bulletSpeed = 50f;
-    private SimplePlayerAgent ownerAgent;
+    private Player ownerAgent;
 
     private void Awake()
     {
@@ -24,7 +24,7 @@ public class Bullet : MonoBehaviour
         Destroy(gameObject, 3f);
     }
 
-    public void SetOwner(SimplePlayerAgent agent)
+    public void SetOwner(Player agent)
     {
         ownerAgent = agent;
     }
@@ -57,7 +57,7 @@ public class Bullet : MonoBehaviour
         if (hitTarget)
         {
             ownerAgent.RegisterHit("Player", other.gameObject);
-            SimplePlayerAgent victim = other.GetComponent<SimplePlayerAgent>();
+            Player victim = other.GetComponent<Player>();
             if (victim != null) victim.GetHit();
 
             Destroy(gameObject);

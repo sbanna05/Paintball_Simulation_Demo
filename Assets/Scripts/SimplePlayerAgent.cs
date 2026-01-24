@@ -5,6 +5,7 @@ using Unity.MLAgents.Actuators;
 using StarterAssets;
 using System.Collections;
 using Unity.MLAgents.Policies;
+using UnityEngine.Animations.Rigging;
 
 public class SimplePlayerAgent : Agent
 {
@@ -19,6 +20,7 @@ public class SimplePlayerAgent : Agent
     private CharacterController characterController;
     private RayPerceptionSensorComponent3D raySensor;
     private ShooterController shooterController;
+    private RigBuilder rigBuilder;
 
     private float maxEpisodeTime = 120f;
     private float episodeTimer;
@@ -31,6 +33,7 @@ public class SimplePlayerAgent : Agent
         characterController = GetComponent<CharacterController>();
         raySensor = GetComponent<RayPerceptionSensorComponent3D>();
         shooterController = GetComponent<ShooterController>();
+        rigBuilder = GetComponent<RigBuilder>();
     }
 
     private void Update()
@@ -62,9 +65,13 @@ public class SimplePlayerAgent : Agent
     private IEnumerator SafeSpawn()
     {
         isSpawning = true;
+
+        // 1. Minden rendszer lekapcsolása (RigBuilder kritikus!)
+        if (rigBuilder) rigBuilder.enabled = false;
         if (characterController) characterController.enabled = false;
         if (shooterController) shooterController.enabled = false;
 
+        // 2. Input reset
         if (inputs)
         {
             inputs.move = Vector2.zero;
@@ -73,18 +80,27 @@ public class SimplePlayerAgent : Agent
             inputs.shoot = false;
         }
 
+        yield return new WaitForFixedUpdate();
+
+        // 3. Teleportálás
         if (agentSpawnPoints.Length > 0)
         {
             int idx = Random.Range(0, agentSpawnPoints.Length);
             transform.SetPositionAndRotation(agentSpawnPoints[idx].position, agentSpawnPoints[idx].rotation);
         }
+
         if (aimTarget) aimTarget.localPosition = new Vector3(0, 1.5f, 10f);
 
         Physics.SyncTransforms();
-        yield return new WaitForFixedUpdate();
 
+        // 4. Extra várakozás a biztonság kedvéért
+        yield return new WaitForSeconds(0.1f);
+
+        // 5. Rendszerek visszakapcsolása
         if (characterController) characterController.enabled = true;
         if (shooterController) shooterController.enabled = true;
+        if (rigBuilder) rigBuilder.enabled = true; // Rigging újraindul az új helyen
+
         isSpawning = false;
     }
 

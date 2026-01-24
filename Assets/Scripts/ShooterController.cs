@@ -8,7 +8,7 @@ public class ShooterController : MonoBehaviour
     [Header("Rigging & Camera")]
     [SerializeField] private CinemachineVirtualCamera aimCamera;
     [SerializeField] private Rig aimRig;
-    [SerializeField] private Transform aimTarget;   
+    [SerializeField] private Transform aimTarget;
 
     [Header("Shooting")]
     [SerializeField] private LayerMask aimMask;
@@ -17,11 +17,10 @@ public class ShooterController : MonoBehaviour
     [SerializeField] private float shootCooldown = 0.3f;
 
     [Header("Sensitivity")]
-    [SerializeField] private float normalSensitivity = 1f;
     [SerializeField] private float aimSensitivity = 0.5f;
 
     private StarterAssetsInputs _inputs;
-    private SimplePlayerAgent _agent;
+    private Player _agent;
     private ThirdPersonController _tpc;
     private Animator _anim;
     private float _lastShootTime;
@@ -29,7 +28,7 @@ public class ShooterController : MonoBehaviour
     private void Awake()
     {
         _inputs = GetComponent<StarterAssetsInputs>();
-        _agent = GetComponent<SimplePlayerAgent>();
+        _agent = GetComponent<Player>();
         _tpc = GetComponent<ThirdPersonController>();
         _anim = GetComponent<Animator>();
     }
@@ -38,6 +37,7 @@ public class ShooterController : MonoBehaviour
     {
         if (_inputs == null || aimTarget == null || Camera.main == null) return;
 
+        // 1. Raycast a célzáshoz
         Vector2 screenCenter = new Vector2(Screen.width / 2f, Screen.height / 2f);
         Ray ray = Camera.main.ScreenPointToRay(screenCenter);
 
@@ -53,11 +53,11 @@ public class ShooterController : MonoBehaviour
         if (_inputs.aim)
         {
             aimCamera.gameObject.SetActive(true);
-            _tpc.setRotateOnMove(false); 
+            _tpc.setRotateOnMove(false);
             _tpc.setSensitivity(aimSensitivity);
 
             Vector3 worldAimDir = Camera.main.transform.forward;
-            worldAimDir.y = 0; // Csak vízszintes forgatás
+            worldAimDir.y = 0;
             if (worldAimDir.sqrMagnitude > 0.01f)
             {
                 transform.forward = Vector3.Slerp(transform.forward, worldAimDir.normalized, Time.deltaTime * 30f);
@@ -67,7 +67,6 @@ public class ShooterController : MonoBehaviour
         {
             aimCamera.gameObject.SetActive(false);
             _tpc.setRotateOnMove(true);
-            _tpc.setSensitivity(normalSensitivity);
         }
 
         float targetWeight = _inputs.aim ? 1f : 0f;
