@@ -27,6 +27,6 @@ behaviors:
       demo_path: C:\Users\Anna\Documents\tananyagok\Egyetemes\5th\szakdoga\Paintball_Simulation_Demo\Assets\Demonstrations\BasicAgent.demo
       strength: 0.5
       steps: 150000
-    max_steps: 1000000
+    max_steps: 4000000
     time_horizon: 128
     summary_freq: 10000
