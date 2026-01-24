@@ -1,101 +1,98 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using Cinemachine;
+﻿using UnityEngine;
 using StarterAssets;
-using UnityEngine.InputSystem;
 using UnityEngine.Animations.Rigging;
+using Cinemachine;
 
 public class ShooterController : MonoBehaviour
 {
-    [Header("Camera & Sensitivity")]
-    [SerializeField] private CinemachineVirtualCamera aimVirtualCamera;
-    [SerializeField] private float normalSensitivity = 0.5f;
-    [SerializeField] private float aimSensitivity = 0.8f;
-    [SerializeField] private LayerMask aimColliderLayerMask = new LayerMask();
+    [Header("Rigging & Camera")]
+    [SerializeField] private CinemachineVirtualCamera aimCamera;
+    [SerializeField] private Rig aimRig;
+    [SerializeField] private Transform aimTarget;
 
     [Header("Shooting")]
-    [SerializeField] private Transform bullet;
-    [SerializeField] private Transform spawnpoint;
+    [SerializeField] private LayerMask aimMask;
+    [SerializeField] private Transform bulletPrefab;
+    [SerializeField] private Transform gunBarrel;
+    [SerializeField] private float shootCooldown = 0.3f;
 
-    [Header("Rigging")]
-    [SerializeField] private Rig aimRig;
+    [Header("Sensitivity")]
+    [SerializeField] private float aimSensitivity = 0.5f;
 
-    private ThirdPersonController thirdPersonController;
-    private StarterAssetsInputs starterAssetsInputs;
-    private Animator animator;
-    private PaintballAgent paintballAgent; // Reference to agent (if controlled by ML)
-    private float aimRigWeight;
+    private StarterAssetsInputs _inputs;
+    private Player _agent;
+    private ThirdPersonController _tpc;
+    private Animator _anim;
+    private float _lastShootTime;
 
     private void Awake()
     {
-        thirdPersonController = GetComponent<ThirdPersonController>();
-        starterAssetsInputs = GetComponent<StarterAssetsInputs>();
-        animator = GetComponent<Animator>();
-        paintballAgent = GetComponent<PaintballAgent>();
+        _inputs = GetComponent<StarterAssetsInputs>();
+        _agent = GetComponent<Player>();
+        _tpc = GetComponent<ThirdPersonController>();
+        _anim = GetComponent<Animator>();
     }
 
-    private void Update()
+    private void LateUpdate()
     {
-        // Smooth rig weight transition
-        aimRig.weight = Mathf.Lerp(aimRig.weight, aimRigWeight, Time.deltaTime * 20f);
-        animator.SetLayerWeight(1, aimRig.weight);
+        if (_inputs == null || aimTarget == null || Camera.main == null) return;
 
-        // Get aim point (screen center for agent, mouse for player)
+        // 1. Raycast a célzáshoz
         Vector2 screenCenter = new Vector2(Screen.width / 2f, Screen.height / 2f);
         Ray ray = Camera.main.ScreenPointToRay(screenCenter);
-        Vector3 aimPoint = transform.position + transform.forward * 10f;
 
-        if (Physics.Raycast(ray, out RaycastHit hit, 999f, aimColliderLayerMask))
+        if (Physics.Raycast(ray, out RaycastHit hit, 100f, aimMask))
         {
-            aimPoint = hit.point;
+            aimTarget.position = Vector3.Lerp(aimTarget.position, hit.point, Time.deltaTime * 25f);
         }
-
-        // AIM MODE ACTIVE
-        if (starterAssetsInputs.aim)
-        {
-            aimVirtualCamera.gameObject.SetActive(true);
-            thirdPersonController.setSensitivity(aimSensitivity);
-            thirdPersonController.setRotateOnMove(false);
-            aimRigWeight = 1f;
-            animator.SetBool("canAim", true);
-
-            // Character looks at aim point
-            Vector3 lookDir = aimPoint - transform.position;
-            lookDir.y = 0;
-            transform.forward = Vector3.Lerp(transform.forward, lookDir.normalized, Time.deltaTime * 20f);
-
-            // SHOOT
-            if (starterAssetsInputs.shoot)
-            {
-                Vector3 shootDir = (aimPoint - spawnpoint.position).normalized;
-
-                // Instantiate bullet
-                Transform bulletInstance = Instantiate(bullet, spawnpoint.position, Quaternion.LookRotation(shootDir, Vector3.up));
-
-                // Set bullet owner (for ML-Agents)
-                if (paintballAgent != null)
-                {
-                    Bullet bulletScript = bulletInstance.GetComponent<Bullet>();
-                    if (bulletScript != null)
-                    {
-                        bulletScript.SetOwner(paintballAgent);
-                    }
-                }
-
-                starterAssetsInputs.shoot = false;
-                animator.SetTrigger("shoot");
-            }
-        }
-        // NORMAL MODE
         else
         {
-            aimRigWeight = 0f;
-            aimVirtualCamera.gameObject.SetActive(false);
-            thirdPersonController.setSensitivity(normalSensitivity);
-            thirdPersonController.setRotateOnMove(true);
-            animator.SetBool("canAim", false);
-            starterAssetsInputs.shoot = false;
+            aimTarget.position = Vector3.Lerp(aimTarget.position, ray.origin + ray.direction * 50f, Time.deltaTime * 25f);
         }
+
+        if (_inputs.aim)
+        {
+            aimCamera.gameObject.SetActive(true);
+            _tpc.setRotateOnMove(false);
+            _tpc.setSensitivity(aimSensitivity);
+
+            Vector3 worldAimDir = Camera.main.transform.forward;
+            worldAimDir.y = 0;
+            if (worldAimDir.sqrMagnitude > 0.01f)
+            {
+                transform.forward = Vector3.Slerp(transform.forward, worldAimDir.normalized, Time.deltaTime * 30f);
+            }
+        }
+        else
+        {
+            aimCamera.gameObject.SetActive(false);
+            _tpc.setRotateOnMove(true);
+        }
+
+        float targetWeight = _inputs.aim ? 1f : 0f;
+        aimRig.weight = Mathf.Lerp(aimRig.weight, targetWeight, Time.deltaTime * 20f);
+
+        _anim.SetBool("canAim", _inputs.aim);
+        _anim.SetLayerWeight(1, aimRig.weight);
+
+        if (_inputs.aim && _inputs.shoot && Time.time > _lastShootTime + shootCooldown)
+        {
+            Shoot();
+            _lastShootTime = Time.time;
+            _inputs.shoot = false;
+        }
+    }
+
+    private void Shoot()
+    {
+        Vector3 dir = (aimTarget.position - gunBarrel.position).normalized;
+        Transform b = Instantiate(bulletPrefab, gunBarrel.position, Quaternion.LookRotation(dir));
+        if (b.TryGetComponent<Bullet>(out var bullet))
+        {
+            bullet.SetOwner(_agent);
+        }
+
+        _anim.SetTrigger("shoot");
+        if (_agent != null) _agent.OnShotFired();
     }
 }

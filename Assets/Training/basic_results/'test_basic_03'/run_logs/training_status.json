@@ -1,0 +1,65 @@
+{
+    "SimpleAgent": {
+        "checkpoints": [
+            {
+                "steps": 449644,
+                "file_path": "results\\'test_basic_03'\\SimpleAgent\\SimpleAgent-449644.onnx",
+                "reward": 114.34111785888672,
+                "creation_time": 1768825883.1234584,
+                "auxillary_file_paths": [
+                    "results\\'test_basic_03'\\SimpleAgent\\SimpleAgent-449644.pt"
+                ]
+            },
+            {
+                "steps": 499452,
+                "file_path": "results\\'test_basic_03'\\SimpleAgent\\SimpleAgent-499452.onnx",
+                "reward": 116.57743263244629,
+                "creation_time": 1768826104.8221717,
+                "auxillary_file_paths": [
+                    "results\\'test_basic_03'\\SimpleAgent\\SimpleAgent-499452.pt"
+                ]
+            },
+            {
+                "steps": 549056,
+                "file_path": "results\\'test_basic_03'\\SimpleAgent\\SimpleAgent-549056.onnx",
+                "reward": 122.93201192220052,
+                "creation_time": 1768826360.4596915,
+                "auxillary_file_paths": [
+                    "results\\'test_basic_03'\\SimpleAgent\\SimpleAgent-549056.pt"
+                ]
+            },
+            {
+                "steps": 599664,
+                "file_path": "results\\'test_basic_03'\\SimpleAgent\\SimpleAgent-599664.onnx",
+                "reward": 121.07075119018555,
+                "creation_time": 1768826593.2965872,
+                "auxillary_file_paths": [
+                    "results\\'test_basic_03'\\SimpleAgent\\SimpleAgent-599664.pt"
+                ]
+            },
+            {
+                "steps": 610646,
+                "file_path": "results\\'test_basic_03'\\SimpleAgent\\SimpleAgent-610646.onnx",
+                "reward": 108.02061653137207,
+                "creation_time": 1768826706.0120633,
+                "auxillary_file_paths": [
+                    "results\\'test_basic_03'\\SimpleAgent\\SimpleAgent-610646.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 610646,
+            "file_path": "results\\'test_basic_03'\\SimpleAgent.onnx",
+            "reward": 108.02061653137207,
+            "creation_time": 1768826706.0120633,
+            "auxillary_file_paths": [
+                "results\\'test_basic_03'\\SimpleAgent\\SimpleAgent-610646.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "1.7.1+cu110"
+    }
+}

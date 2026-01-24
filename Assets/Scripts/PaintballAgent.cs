@@ -11,7 +11,7 @@ using UnityEngine.InputSystem;
 
 public class PaintballAgent : Agent
 {
-    [Header("Agent References")]
+    /*[Header("Agent References")]
     [SerializeField] private Transform enemyTransform;
     // GameController automatikusan megkeresve
     private GameController gameController;
@@ -20,11 +20,11 @@ public class PaintballAgent : Agent
 
     [Header("Detection Settings")]
     [SerializeField] private float maxRaycastDistance = 50f;
-    // raycastDirections ELTÁVOLÍTVA - Ray Perception Sensor használja
+    // raycastDirections ELTï¿½VOLï¿½TVA - Ray Perception Sensor hasznï¿½lja
     [SerializeField] private LayerMask obstacleLayerMask;
     [SerializeField] private LayerMask coverLayerMask;
 
-    // MEGJEGYZÉS: Ray Perception Sensor automatikusan hozzáadja:
+    // MEGJEGYZï¿½S: Ray Perception Sensor automatikusan hozzï¿½adja:
     // - 7 ray * (1 hit/ray + 4 detectable tags) = ~35-50 observations
 
     [Header("Combat Settings")]
@@ -32,7 +32,7 @@ public class PaintballAgent : Agent
     [SerializeField] private float maxHealth = 100f;
 
     [Header("Near Miss Collider")]
-    [SerializeField] private Collider nearMissCollider; // A nagyobb collider a közelihalálérzékeléshez
+    [SerializeField] private Collider nearMissCollider; // A nagyobb collider a kï¿½zelihalï¿½lï¿½rzï¿½kelï¿½shez
 
     // Components
     private ThirdPersonController thirdPersonController;
@@ -52,6 +52,8 @@ public class PaintballAgent : Agent
     private bool enemyVisible;
     private Vector3 directionToEnemy;
 
+    private Rigidbody rb;
+
     public enum AgentMode
     {
         Offensive,
@@ -65,7 +67,7 @@ public class PaintballAgent : Agent
         starterAssetsInputs = GetComponent<StarterAssetsInputs>();
         shooterController = GetComponent<ShooterController>();
         animator = GetComponent<Animator>();
-
+        rb = GetComponent<Rigidbody>();
         currentHealth = maxHealth;
 
         // Setup near miss detection
@@ -90,16 +92,16 @@ public class PaintballAgent : Agent
 
     public override void OnEpisodeBegin()
     {
-        
+
     }
 
     public void ResetAgent(Transform spawnPoint)
     {
+
         currentHealth = maxHealth;
         isUnderFire = false;
         underFireTimer = 0f;
         currentMode = AgentMode.Offensive;
-        lastShootTime = -shootCooldown;
 
         starterAssetsInputs.move = Vector2.zero;
         starterAssetsInputs.look = Vector2.zero;
@@ -107,65 +109,39 @@ public class PaintballAgent : Agent
         starterAssetsInputs.shoot = false;
         starterAssetsInputs.jump = false;
 
+
         transform.position = spawnPoint.position;
         transform.rotation = spawnPoint.rotation;
 
-        Rigidbody rb = GetComponent<Rigidbody>();
-        if (rb != null)
-        {
-            rb.velocity = Vector3.zero;
-            rb.angularVelocity = Vector3.zero;
-        }
+
     }
 
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        // Update enemy info
+        // 16 MANUAL OBSERVATIONS
+        sensor.AddObservation(currentHealth / maxHealth); // 1
+        sensor.AddObservation(transform.localPosition);   // 3 (Lokï¿½lis koordinï¿½ta!)
+        sensor.AddObservation(transform.localRotation.eulerAngles.y / 360f); // 1
+
         if (enemyTransform != null)
         {
-            directionToEnemy = (enemyTransform.position - transform.position);
-            distanceToEnemy = directionToEnemy.magnitude;
-            directionToEnemy.Normalize();
-
-            // Check line of sight
-            enemyVisible = CheckLineOfSight(enemyTransform.position);
-        }
-
-        // 1. Self state (7 observations)
-        sensor.AddObservation(transform.localPosition); // 3
-        sensor.AddObservation(transform.forward); // 3
-        sensor.AddObservation(currentHealth / maxHealth); // 1 (normalized)
-
-        // 2. Enemy information (5 observations)
-        if (enemyTransform != null)
-        {
-            sensor.AddObservation(directionToEnemy); // 3
-            sensor.AddObservation(distanceToEnemy / maxRaycastDistance); // 1 (normalized)
-            sensor.AddObservation(enemyVisible ? 1f : 0f); // 1
+            Vector3 localDirToEnemy = transform.InverseTransformPoint(enemyTransform.position);
+            sensor.AddObservation(localDirToEnemy.normalized); // 3
+            sensor.AddObservation(Vector3.Distance(transform.position, enemyTransform.position) / maxRaycastDistance); // 1
+            sensor.AddObservation(CheckLineOfSight(enemyTransform.position) ? 1f : 0f); // 1
         }
         else
         {
-            sensor.AddObservation(Vector3.zero); // 3
-            sensor.AddObservation(0f); // 1
-            sensor.AddObservation(0f); // 1
+            sensor.AddObservation(new float[5]);
         }
 
-        // 3. Ray Perception Sensor automatically adds environmental observations!
-        // Nincs szükség manuális raycast-okra itt
 
-        // 4. Combat state (3 observations)
         sensor.AddObservation(isUnderFire ? 1f : 0f); // 1
         sensor.AddObservation(starterAssetsInputs.aim ? 1f : 0f); // 1
-        sensor.AddObservation((int)currentMode / 1f); // 1 (0=Offensive, 1=Defensive)
-
-        // 5. Closest cover distance (1 observation)
-        float closestCoverDistance = FindClosestCover();
-        sensor.AddObservation(closestCoverDistance / maxRaycastDistance); // 1
-
-        // Total MANUAL observations: 7 + 5 + 0 + 3 + 1 = 16
-        // Ray Perception Sensor adds automatically: ~35-50 (depending on settings)
-        // TOTAL: ~51-66 observations
+        sensor.AddObservation((int)currentMode / 1f); // 1
+        sensor.AddObservation(FindClosestCover() / maxRaycastDistance); // 1
+        sensor.AddObservation(rb.velocity / 10f); // 3 (Sebessï¿½g segï¿½t a mozgï¿½s tanulï¿½sï¿½ban)
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -173,7 +149,9 @@ public class PaintballAgent : Agent
         // Debug: First action to verify ML is controlling
         if (Time.frameCount % 100 == 0) // Log every 100 frames
         {
+
             Debug.Log($"{gameObject.name} - ML Action: Move={actions.DiscreteActions[0]}, Rotate={actions.DiscreteActions[1]}");
+
         }
 
         // Discrete actions
@@ -306,15 +284,16 @@ public class PaintballAgent : Agent
             discreteActions[0] = 4; // None
 
         // Rotation
-        if (Input.GetKey(KeyCode.Q))
-            discreteActions[1] = 0; // Turn left
-        else if (Input.GetKey(KeyCode.E))
-            discreteActions[1] = 2; // Turn right
+        float mouseX = Input.GetAxisRaw("Mouse X");
+        if (mouseX < -0.1f)
+            discreteActions[1] = 0; // Balra forgï¿½s
+        else if (mouseX > 0.1f)
+            discreteActions[1] = 2; // Jobbra forgï¿½s
         else
-            discreteActions[1] = 1; // None
+            discreteActions[1] = 1; // Nincs forgï¿½s
 
         // Shoot
-        discreteActions[2] = Input.GetKey(KeyCode.Space) ? 1 : 0;
+        discreteActions[2] = Input.GetMouseButton(0) ? 1 : 0;
 
         // Aim
         discreteActions[3] = Input.GetMouseButton(1) ? 1 : 0;
@@ -333,6 +312,13 @@ public class PaintballAgent : Agent
             gameController.OnAgentKilled(this);
             EndEpisode();
         }
+    }
+    public void RegisterNearMiss(Vector3 bulletPosition)
+    {
+        isUnderFire = true;
+        underFireTimer = 0f;
+        AddReward(-0.05f);
+        Debug.Log($"{gameObject.name} - Near miss registered!");
     }
 
     // Called by GameController when this agent wins
@@ -438,5 +424,5 @@ public class PaintballAgent : Agent
     // Getters
     public float GetHealth() => currentHealth;
     public AgentMode GetMode() => currentMode;
-    public bool IsUnderFire() => isUnderFire;
+    public bool IsUnderFire() => isUnderFire;*/
 }

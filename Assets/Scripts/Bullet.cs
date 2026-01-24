@@ -1,17 +1,14 @@
-using UnityEngine;
-using System.Collections;
+Ôªøusing UnityEngine;
 
 public class Bullet : MonoBehaviour
 {
     [SerializeField] private Transform vfxHitGreen;
     [SerializeField] private Transform vfxHitRed;
-    [SerializeField] private float damage = 100f; // Fatal shot
-
     [SerializeField] private LayerMask hitLayers;
 
     private Rigidbody bulletRigidBody;
     private float bulletSpeed = 50f;
-    private PaintballAgent ownerAgent; // Who shot this bullet
+    private Player ownerAgent;
 
     private void Awake()
     {
@@ -20,90 +17,94 @@ public class Bullet : MonoBehaviour
 
     private void Start()
     {
-        bulletRigidBody.velocity = transform.forward * bulletSpeed;
+        if (bulletRigidBody != null)
+        {
+            bulletRigidBody.velocity = transform.forward * bulletSpeed;
+        }
         Destroy(gameObject, 3f);
     }
 
-    // Set the agent who fired this bullet
-    public void SetOwner(PaintballAgent owner)
+    public void SetOwner(Player agent)
     {
-        ownerAgent = owner;
+        ownerAgent = agent;
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        // Ignore collision with owner
-        if (ownerAgent != null && other.transform.IsChildOf(ownerAgent.transform))
-        {
-            return;
-        }
+        //Debug.Log($"BULLET HIT: {other.name} (Tag: {other.tag})");
 
-        Debug.Log("BULLET TRIGGERED: " + other.name);
+        if (bulletRigidBody == null)
+            return;
+
+        if (other.transform.IsChildOf(ownerAgent.transform)) return;
+
+        //Debug.Log("√útk√∂z√©s: " + other.name + " Layer: "  + LayerMask.LayerToName(other.gameObject.layer));
+        //ownerAgent.RegisterHit(other.tag, other.gameObject);
 
         Vector3 direction = bulletRigidBody.velocity.normalized;
 
-        // Check if we hit an agent
-        PaintballAgent hitAgent = other.GetComponentInParent<PaintballAgent>();
+        // Check what we hit
+        bool hitTarget = other.CompareTag("Player"); // Direct hit on target
+        bool hitNearMiss = other.CompareTag("NearMiss"); // Near miss
 
-        // Check if this is the near miss collider or actual body
-        bool isNearMissCollider = other.gameObject.name.Contains("NearMiss") ||
-                                   other.gameObject.CompareTag("NearMiss");
-
-        if (hitAgent != null && !isNearMissCollider)
+        // Near miss
+        if (hitNearMiss && ownerAgent != null)
         {
-            // Direct hit on agent body!
-            hitAgent.TakeDamage(damage);
-            Debug.Log($"<color=red>DIRECT HIT!</color> {hitAgent.name} took {damage} damage!");
+            //Debug.Log("NEAR MISS!");
+            ownerAgent.RegisterHit("NearMiss", other.gameObject);
+            return;
+        }
+        if (hitTarget)
+        {
+            ownerAgent.RegisterHit("Player", other.gameObject);
+            Player victim = other.GetComponent<Player>();
+            if (victim != null) victim.GetHit();
+
+            Destroy(gameObject);
+        }
+        else if (!other.isTrigger)
+        {
+            ownerAgent.RegisterHit(other.tag, other.gameObject);
+            Destroy(gameObject);
         }
 
-        // Target keresÈse (for target practice)
-        Target target = other.GetComponentInParent<Target>();
-
-        // Raycast a pontos tal·lati ponthoz
+        // Spawn visual effect
         RaycastHit hit;
-        if (Physics.Raycast(transform.position - direction, direction, out hit, 1f, hitLayers))
+        if (Physics.Raycast(transform.position - direction * 0.5f, direction, out hit, 1f, hitLayers))
         {
-            SpawnSplat(
-                (target != null || hitAgent != null) ? vfxHitGreen : vfxHitRed,
+            /*SpawnSplat(
+                hitTarget ? vfxHitGreen : vfxHitRed,
                 hit.point,
                 hit.normal,
                 other.transform
-            );
+            );*/
         }
         else
         {
-            // Raycast MISSED - using approximation
             Vector3 hitPoint = other.ClosestPoint(transform.position);
             Vector3 hitNormal = (transform.position - hitPoint).normalized;
 
-            SpawnSplat(
-                (target != null || hitAgent != null) ? vfxHitGreen : vfxHitRed,
+          /*  SpawnSplat(
+                hitTarget ? vfxHitGreen : vfxHitRed,
                 hitPoint,
                 hitNormal,
                 other.transform
-            );
+            );*/
         }
 
-        Destroy(gameObject);
     }
 
     private void SpawnSplat(Transform prefab, Vector3 hitPoint, Vector3 hitNormal, Transform hitTransform)
     {
-        if (!prefab)
-        {
-            Debug.LogWarning("Splat Prefab is NULL!");
-            return;
-        }
-
-        Quaternion rotation = Quaternion.FromToRotation(Vector3.right, -hitNormal);
+       Quaternion rotation = Quaternion.LookRotation(-hitNormal);
         Vector3 spawnPos = hitPoint + hitNormal * 0.002f;
-
         Transform splat = Instantiate(prefab, spawnPos, rotation);
 
-        // R÷GZÕT…S A FALHOZ/KARAKTERHEZ
-        splat.SetParent(hitTransform);
+        if (hitTransform != null)
+        {
+            splat.SetParent(hitTransform);
+        }
 
-        // Auto-destroy splat after some time (optional)
         Destroy(splat.gameObject, 10f);
     }
 }

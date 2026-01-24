@@ -15,6 +15,9 @@ namespace StarterAssets
         public bool aim;
         public bool shoot;
 
+        [Header("ML snesing")]
+        public bool enablePlayerInput = true;
+
         [Header("Movement Settings")]
         public bool analogMovement;
 
@@ -28,6 +31,7 @@ namespace StarterAssets
 #endif
 
 #if ENABLE_INPUT_SYSTEM && STARTER_ASSETS_PACKAGES_CHECKED
+
 
         public void OnMove(InputValue value)
         {
@@ -67,11 +71,12 @@ namespace StarterAssets
         {
             if (!enablePlayerInput) return;
             ShootInput(value.isPressed);
+
         }
 
 #endif
 
-        // ====== ML / Player közös API ======
+        // ====== ML / Player kï¿½zï¿½s API ======
 
         public void MoveInput(Vector2 newMoveDirection)
         {

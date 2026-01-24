@@ -1,1 +1,117 @@
-{"count":1,"self":619.81184,"total":1689.5014618999999,"children":{"InitializeActuators":{"count":2,"self":0.0025238,"total":0.0025238,"children":null},"InitializeSensors":{"count":2,"self":0.0030253,"total":0.0030253,"children":null},"AgentSendState":{"count":222867,"self":7.6857647999999994,"total":57.8905713,"children":{"CollectObservations":{"count":89148,"self":11.774245599999999,"total":11.7742458,"children":null},"WriteActionMask":{"count":89148,"self":0.13055529999999999,"total":0.13055529999999999,"children":null},"RequestDecision":{"count":89148,"self":0.5831774,"total":38.3000058,"children":{"AgentInfo.ToProto":{"count":89148,"self":0.8261672,"total":37.7168284,"children":{"GenerateSensorData":{"count":89148,"self":36.5950688,"total":36.8906612,"children":{"RayPerceptionSensor.Perceive":{"count":89148,"self":0.2955933,"total":0.2955933,"children":null}}}}}}}}},"DecideAction":{"count":222867,"self":1008.8971263999999,"total":1008.8970787,"children":null},"AgentAct":{"count":222867,"self":2.861792,"total":2.8617920999999997,"children":null},"AgentInfo.ToProto":{"count":92,"self":0.0020047,"total":0.0331109,"children":{"GenerateSensorData":{"count":92,"self":0.031106199999999997,"total":0.031106199999999997,"children":{"RayPerceptionSensor.Perceive":{"count":92,"self":0,"total":0,"children":null}}}}}},"gauges":{"PaintballAgent.CumulativeReward":{"count":92,"max":0.7717837,"min":-50.325882,"runningAverage":-17.2600517,"value":-16.3859863,"weightedAverage":-12.50614}},"metadata":{"timer_format_version":"0.1.0","start_time_seconds":"1768064448","unity_version":"2022.3.48f1","command_line_arguments":"C:\\Program Files\\Unity\\Hub\\Editor\\2022.3.48f1\\Editor\\Unity.exe -projectpath C:\\Users\\Anna\\Documents\\tananyagok\\Egyetemes\\5th\\szakdoga\\Paintball_Simulation_Demo -acceptSoftwareTermsForThisRunOnly -useHub -hubIPC -cloudEnvironment production -licensingIpc LicenseClient-Anna -hubSessionId f2669a12-eb0e-45ec-bc4a-cbc440c9b7fb -accessToken lRTYPgFYUl719eu4y8bmk8QTld2O8ny-9P77TWwFyHE007f","communication_protocol_version":"1.5.0","com.unity.ml-agents_version":"2.0.2","scene_name":"Demo","end_time_seconds":"1768066138"}}
+{
+  "count": 1,
+  "self": 619.81184,
+  "total": 1689.5014618999999,
+  "children": {
+    "InitializeActuators": {
+      "count": 2,
+      "self": 0.0025238,
+      "total": 0.0025238,
+      "children": null
+    },
+    "InitializeSensors": {
+      "count": 2,
+      "self": 0.0030253,
+      "total": 0.0030253,
+      "children": null
+    },
+    "AgentSendState": {
+      "count": 222867,
+      "self": 7.6857647999999994,
+      "total": 57.8905713,
+      "children": {
+        "CollectObservations": {
+          "count": 89148,
+          "self": 11.774245599999999,
+          "total": 11.7742458,
+          "children": null
+        },
+        "WriteActionMask": {
+          "count": 89148,
+          "self": 0.13055529999999999,
+          "total": 0.13055529999999999,
+          "children": null
+        },
+        "RequestDecision": {
+          "count": 89148,
+          "self": 0.5831774,
+          "total": 38.3000058,
+          "children": {
+            "AgentInfo.ToProto": {
+              "count": 89148,
+              "self": 0.8261672,
+              "total": 37.7168284,
+              "children": {
+                "GenerateSensorData": {
+                  "count": 89148,
+                  "self": 36.5950688,
+                  "total": 36.8906612,
+                  "children": {
+                    "RayPerceptionSensor.Perceive": {
+                      "count": 89148,
+                      "self": 0.2955933,
+                      "total": 0.2955933,
+                      "children": null
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "DecideAction": {
+      "count": 222867,
+      "self": 1008.8971263999999,
+      "total": 1008.8970787,
+      "children": null
+    },
+    "AgentAct": {
+      "count": 222867,
+      "self": 2.861792,
+      "total": 2.8617920999999997,
+      "children": null
+    },
+    "AgentInfo.ToProto": {
+      "count": 92,
+      "self": 0.0020047,
+      "total": 0.0331109,
+      "children": {
+        "GenerateSensorData": {
+          "count": 92,
+          "self": 0.031106199999999997,
+          "total": 0.031106199999999997,
+          "children": {
+            "RayPerceptionSensor.Perceive": {
+              "count": 92,
+              "self": 0,
+              "total": 0,
+              "children": null
+            }
+          }
+        }
+      }
+    }
+  },
+  "gauges": {
+    "PaintballAgent.CumulativeReward": {
+      "count": 92,
+      "max": 0.7717837,
+      "min": -50.325882,
+      "runningAverage": -17.2600517,
+      "value": -16.3859863,
+      "weightedAverage": -12.50614
+    }
+  },
+  "metadata": {
+    "timer_format_version": "0.1.0",
+    "start_time_seconds": "1768064448",
+    "unity_version": "2022.3.48f1",
+    "command_line_arguments": "C:\\Program Files\\Unity\\Hub\\Editor\\2022.3.48f1\\Editor\\Unity.exe -projectpath C:\\Users\\Anna\\Documents\\tananyagok\\Egyetemes\\5th\\szakdoga\\Paintball_Simulation_Demo -acceptSoftwareTermsForThisRunOnly -useHub -hubIPC -cloudEnvironment production -licensingIpc LicenseClient-Anna -hubSessionId f2669a12-eb0e-45ec-bc4a-cbc440c9b7fb -accessToken lRTYPgFYUl719eu4y8bmk8QTld2O8ny-9P77TWwFyHE007f",
+    "communication_protocol_version": "1.5.0",
+    "com.unity.ml-agents_version": "2.0.2",
+    "scene_name": "Demo",
+    "end_time_seconds": "1768066138"
+  }
+}

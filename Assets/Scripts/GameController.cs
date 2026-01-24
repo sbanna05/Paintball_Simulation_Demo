@@ -1,11 +1,11 @@
-using System.Collections;
+ï»¿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.MLAgents;
 
 public class GameController : MonoBehaviour
 {
-    [Header("Agents")]
+   /* [Header("Agents")]
     [SerializeField] private PaintballAgent agent1;
     [SerializeField] private PaintballAgent agent2;
 
@@ -13,8 +13,13 @@ public class GameController : MonoBehaviour
     [SerializeField] private float maxEpisodeTime = 180f; 
     [SerializeField] private float stalemateWarningTime = 90f; 
 
+
     [Header("Statistics")]
-    [SerializeField] private bool showDebugInfo = true;
+    [SerializeField] private bool showDebugInfo = false;
+
+    [Header("Spawn Settings")]
+    [SerializeField] private Transform[] spawnPoints;
+
 
     [Header("Spawn Settings")]
     [SerializeField] private Transform[] spawnPoints;
@@ -98,7 +103,7 @@ public class GameController : MonoBehaviour
 
         totalEpisodes++;
 
-        // --- Spawn index lista újratöltése ---
+        // --- Spawn index lista ÃºjratÃ¶ltÃ©se ---
         availableSpawnIndices.Clear();
         for (int i = 0; i < spawnPoints.Length; i++)
             availableSpawnIndices.Add(i);
@@ -111,12 +116,14 @@ public class GameController : MonoBehaviour
         Transform spawn2 = GetUniqueSpawn();
         agent2.ResetAgent(spawn2);
 
-        if (showDebugInfo)
+        /*if (showDebugInfo)
         {
             Debug.Log($"=== NEW EPISODE STARTED === (#{totalEpisodes})");
             Debug.Log($"Agent1 spawn: {spawn1.name}");
             Debug.Log($"Agent2 spawn: {spawn2.name}");
-        }
+
+        }*/
+/*
     }
 
 
@@ -170,8 +177,8 @@ public class GameController : MonoBehaviour
     {
         // Display on screen using GUI (optional)
         string info = $"Episode Time: {currentEpisodeTime:F1}s / {maxEpisodeTime}s\n";
-        info += $"Agent 1: Health={agent1.GetHealth():F0}, Mode={agent1.GetMode()}, UnderFire={agent1.IsUnderFire()}\n";
-        info += $"Agent 2: Health={agent2.GetHealth():F0}, Mode={agent2.GetMode()}, UnderFire={agent2.IsUnderFire()}\n";
+        info += $"Agent 1: Mode={agent1.GetMode()}, UnderFire={agent1.IsUnderFire()}\n";
+        info += $"Agent 2: Mode={agent2.GetMode()}, UnderFire={agent2.IsUnderFire()}\n";
         info += $"\nStatistics (Total: {totalEpisodes})\n";
         info += $"Agent 1 Wins: {agent1Wins} ({GetWinRate(agent1Wins):F1}%)\n";
         info += $"Agent 2 Wins: {agent2Wins} ({GetWinRate(agent2Wins):F1}%)\n";
@@ -222,5 +229,5 @@ public class GameController : MonoBehaviour
     // Public getters for agents
     public float GetCurrentEpisodeTime() => currentEpisodeTime;
     public float GetRemainingTime() => maxEpisodeTime - currentEpisodeTime;
-    public bool IsEpisodeActive() => episodeActive;
+    public bool IsEpisodeActive() => episodeActive;*/
 }
