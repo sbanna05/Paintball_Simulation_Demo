@@ -1,0 +1,30 @@
+{
+    "DoubleAgent": {
+        "elo": 1148.7726535122038,
+        "checkpoints": [
+            {
+                "steps": 293331,
+                "file_path": "results\\twoagent_02_self\\DoubleAgent\\DoubleAgent-293331.onnx",
+                "reward": -37.03080713748932,
+                "creation_time": 1768990255.1093287,
+                "auxillary_file_paths": [
+                    "results\\twoagent_02_self\\DoubleAgent\\DoubleAgent-293331.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 293331,
+            "file_path": "results\\twoagent_02_self\\DoubleAgent.onnx",
+            "reward": -37.03080713748932,
+            "creation_time": 1768990255.1093287,
+            "auxillary_file_paths": [
+                "results\\twoagent_02_self\\DoubleAgent\\DoubleAgent-293331.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "1.7.1+cu110"
+    }
+}

@@ -1,0 +1,47 @@
+{
+    "BasicAgent": {
+        "checkpoints": [
+            {
+                "steps": 1499894,
+                "file_path": "results\\basic_with_bc\\BasicAgent\\BasicAgent-1499894.onnx",
+                "reward": 23.872093121955793,
+                "creation_time": 1769265119.7379146,
+                "auxillary_file_paths": [
+                    "results\\basic_with_bc\\BasicAgent\\BasicAgent-1499894.pt"
+                ]
+            },
+            {
+                "steps": 1999967,
+                "file_path": "results\\basic_with_bc\\BasicAgent\\BasicAgent-1999967.onnx",
+                "reward": 21.051399379968643,
+                "creation_time": 1769268289.234346,
+                "auxillary_file_paths": [
+                    "results\\basic_with_bc\\BasicAgent\\BasicAgent-1999967.pt"
+                ]
+            },
+            {
+                "steps": 2048514,
+                "file_path": "results\\basic_with_bc\\BasicAgent\\BasicAgent-2048514.onnx",
+                "reward": 23.604091649623335,
+                "creation_time": 1769268626.9680996,
+                "auxillary_file_paths": [
+                    "results\\basic_with_bc\\BasicAgent\\BasicAgent-2048514.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 2048514,
+            "file_path": "results\\basic_with_bc\\BasicAgent.onnx",
+            "reward": 23.604091649623335,
+            "creation_time": 1769268626.9680996,
+            "auxillary_file_paths": [
+                "results\\basic_with_bc\\BasicAgent\\BasicAgent-2048514.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "1.7.1+cu110"
+    }
+}

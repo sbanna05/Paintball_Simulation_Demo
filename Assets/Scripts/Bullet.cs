@@ -1,15 +1,14 @@
-using UnityEngine;
-using System.Collections;
+ï»¿using UnityEngine;
 
 public class Bullet : MonoBehaviour
 {
     [SerializeField] private Transform vfxHitGreen;
     [SerializeField] private Transform vfxHitRed;
-    
     [SerializeField] private LayerMask hitLayers;
 
     private Rigidbody bulletRigidBody;
     private float bulletSpeed = 50f;
+    private Player ownerAgent;
 
     private void Awake()
     {
@@ -18,67 +17,94 @@ public class Bullet : MonoBehaviour
 
     private void Start()
     {
-        bulletRigidBody.velocity = transform.forward * bulletSpeed;
+        if (bulletRigidBody != null)
+        {
+            bulletRigidBody.velocity = transform.forward * bulletSpeed;
+        }
         Destroy(gameObject, 3f);
+    }
+
+    public void SetOwner(Player agent)
+    {
+        ownerAgent = agent;
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        Debug.Log("BULLET TRIGGERED: " + other.name);
+        //Debug.Log($"BULLET HIT: {other.name} (Tag: {other.tag})");
+
+        if (bulletRigidBody == null)
+            return;
+
+        if (other.transform.IsChildOf(ownerAgent.transform)) return;
+
+        //Debug.Log("ÃœtkÃ¶zÃ©s: " + other.name + " Layer: "  + LayerMask.LayerToName(other.gameObject.layer));
+        //ownerAgent.RegisterHit(other.tag, other.gameObject);
 
         Vector3 direction = bulletRigidBody.velocity.normalized;
 
-        // Target keresése a collideren vagy szülõjén
-        Target target = other.GetComponentInParent<Target>();
+        // Check what we hit
+        bool hitTarget = other.CompareTag("Player"); // Direct hit on target
+        bool hitNearMiss = other.CompareTag("NearMiss"); // Near miss
 
-        RaycastHit hit;
-        // Raycast a pontos találati ponthoz
-        // A hitLayers LayerMask-ot is beiktattuk
-        if (Physics.Raycast(transform.position - direction, direction, out hit, 1f, hitLayers))
+        // Near miss
+        if (hitNearMiss && ownerAgent != null)
         {
-            SpawnSplat(
-                target ? vfxHitGreen : vfxHitRed,
+            //Debug.Log("NEAR MISS!");
+            ownerAgent.RegisterHit("NearMiss", other.gameObject);
+            return;
+        }
+        if (hitTarget)
+        {
+            ownerAgent.RegisterHit("Player", other.gameObject);
+            Player victim = other.GetComponent<Player>();
+            if (victim != null) victim.GetHit();
+
+            Destroy(gameObject);
+        }
+        else if (!other.isTrigger)
+        {
+            ownerAgent.RegisterHit(other.tag, other.gameObject);
+            Destroy(gameObject);
+        }
+
+        // Spawn visual effect
+        RaycastHit hit;
+        if (Physics.Raycast(transform.position - direction * 0.5f, direction, out hit, 1f, hitLayers))
+        {
+            /*SpawnSplat(
+                hitTarget ? vfxHitGreen : vfxHitRed,
                 hit.point,
                 hit.normal,
                 other.transform
-            );
+            );*/
         }
         else
         {
-            // Raycast MISSED ág (Ha a Raycast valamiért nem talált, a Collider találatból próbálunk közelíteni)
-            // Debug.Log("Raycast MISSED - using approximation");
-
             Vector3 hitPoint = other.ClosestPoint(transform.position);
             Vector3 hitNormal = (transform.position - hitPoint).normalized;
 
-            SpawnSplat(
-                target ? vfxHitGreen : vfxHitRed,
+          /*  SpawnSplat(
+                hitTarget ? vfxHitGreen : vfxHitRed,
                 hitPoint,
                 hitNormal,
                 other.transform
-            );
+            );*/
         }
 
-        Destroy(gameObject);
     }
 
     private void SpawnSplat(Transform prefab, Vector3 hitPoint, Vector3 hitNormal, Transform hitTransform)
     {
-        if (!prefab)
-        {
-            Debug.LogError("Splat Prefab is NULL!");
-            return;
-        }
-        Debug.Log("hit object: " + prefab);
-        Quaternion rotation = Quaternion.FromToRotation(Vector3.right, -hitNormal); //right-al talán jó volt
-        Debug.Log("rotation: " + rotation);
+       Quaternion rotation = Quaternion.LookRotation(-hitNormal);
         Vector3 spawnPos = hitPoint + hitNormal * 0.002f;
-        
         Transform splat = Instantiate(prefab, spawnPos, rotation);
-        Debug.Log("hittransform: " + hitTransform);
-        // RÖGZÍTÉS A FALHOZ
-        splat.SetParent(hitTransform);
 
-        
+        if (hitTransform != null)
+        {
+            splat.SetParent(hitTransform);
+        }
+
+        Destroy(splat.gameObject, 10f);
     }
 }

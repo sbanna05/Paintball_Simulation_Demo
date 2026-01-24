@@ -263,6 +263,7 @@ namespace StarterAssets
                     {
                         _animator.SetBool(_animIDJump, true);
                     }
+                    _input.jump = false;
                 }
 
                 // jump timeout
@@ -281,21 +282,16 @@ namespace StarterAssets
                 {
                     _fallTimeoutDelta -= Time.deltaTime;
                 }
-                else
+                else if (_hasAnimator)
                 {
-                    // update animator if using character
-                    if (_hasAnimator)
-                    {
-                        _animator.SetBool(_animIDFreeFall, true);
-                    }
+                    _animator.SetBool(_animIDFreeFall, true);
                 }
 
                 // if we are not grounded, do not jump
                 _input.jump = false;
             }
 
-            // apply gravity over time if under terminal (multiply by delta time twice to linearly speed up over time)
-            if (_verticalVelocity < _terminalVelocity)
+            if (Mathf.Abs(_verticalVelocity) < _terminalVelocity)
             {
                 _verticalVelocity += Gravity * Time.deltaTime;
             }
@@ -318,6 +314,12 @@ namespace StarterAssets
 
             // when selected, draw a gizmo in the position of, and matching radius of, the grounded collider
             Gizmos.DrawSphere(new Vector3(transform.position.x, transform.position.y - GroundedOffset, transform.position.z), GroundedRadius);
+        }
+
+        public void SetRotation(float yaw)
+        {
+            _cinemachineTargetYaw = yaw;
+            transform.rotation = Quaternion.Euler(0.0f, yaw, 0.0f);
         }
 
         public void setSensitivity(float newSensitivity)
