@@ -21,7 +21,7 @@ behaviors:
         strength: 1.0
       gail:
         gamma: 0.99
-        strength: 0.1
+        strength: 0.3
         demo_path: C:\Users\Anna\Documents\tananyagok\Egyetemes\5th\szakdoga\Paintball_Simulation_Demo\Assets\Demonstrations\BasicAgent.demo
     behavioral_cloning:
       demo_path: C:\Users\Anna\Documents\tananyagok\Egyetemes\5th\szakdoga\Paintball_Simulation_Demo\Assets\Demonstrations\BasicAgent.demo
@@ -30,3 +30,6 @@ behaviors:
     max_steps: 4000000
     time_horizon: 128
     summary_freq: 10000
+    checkpoint_interval: 100000
+    keep_checkpoints: 5
+    threaded: true

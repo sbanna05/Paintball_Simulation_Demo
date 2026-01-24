@@ -138,29 +138,29 @@ public class Player : Agent
             inputs.look = new Vector2(lookX, lookY);
             inputs.aim = shouldAim;
             inputs.shoot = shouldShoot;
-            inputs.jump = shouldJump;
+            inputs.jump = false;
             inputs.sprint = shouldSprint;
-
-            if (shouldJump && characterController.isGrounded)
-            {
-                AddReward(-0.05f);
-            }
+            
         }
 
-        AddReward(-0.0002f);
+        AddReward(-0.0001f);
 
         if (enemyTarget != null)
         {
             float distance = Vector3.Distance(transform.position, enemyTarget.position);
+            Vector3 toEnemy = (enemyTarget.position - transform.position).normalized;
+            float dot = Vector3.Dot(transform.forward, toEnemy);
 
-            if (distance < 5f) AddReward(-0.01f);
-            else if (distance > 8f && distance < 15f) AddReward(0.005f);
+            if (dot > 0.5f)
+            {
+                AddReward(0.005f * dot);
+            }
+
+            if (distance > 8f && distance < 20f) AddReward(0.001f);
 
             if (shouldAim && IsEnemyVisible())
             {
-                Vector3 toEnemy = (enemyTarget.position - transform.position).normalized;
-                float dot = Vector3.Dot(transform.forward, toEnemy);
-                if (dot > 0.96f) AddReward(0.01f);
+                AddReward(0.01f);
             }
         }
 
@@ -214,7 +214,7 @@ public class Player : Agent
         {
             if (hitObject.transform.root != transform)
             {
-                AddReward(0.2f);
+                AddReward(0.5f);
                 Debug.Log("<color=yellow>NEAR MISS!</color>");
             }
         }
