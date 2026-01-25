@@ -135,7 +135,17 @@ public class Player : Agent
         if (inputs != null)
         {
             inputs.move = new Vector2(moveX, moveZ);
-            inputs.look = new Vector2(lookX, lookY);
+
+            if (!IsHeuristic())
+            {
+                transform.Rotate(Vector3.up, lookX * 200f * Time.deltaTime);
+                inputs.look = Vector2.zero;
+            }
+            else
+            {
+                inputs.look = new Vector2(lookX, lookY);
+            }
+
             inputs.aim = shouldAim;
             inputs.shoot = shouldShoot;
             inputs.jump = false;
@@ -144,6 +154,13 @@ public class Player : Agent
         }
 
         AddReward(-0.0001f);
+
+        if (aimTarget != null && !IsHeuristic())
+        {
+            Vector3 lp = aimTarget.localPosition;
+            lp.y = Mathf.Clamp(lp.y + (lookY * Time.deltaTime * 5f), 0.5f, 3.5f);
+            aimTarget.localPosition = lp;
+        }
 
         if (enemyTarget != null)
         {
@@ -156,7 +173,8 @@ public class Player : Agent
                 AddReward(0.005f * dot);
             }
 
-            if (distance > 8f && distance < 20f) AddReward(0.001f);
+            if (distance < 8) AddReward(-0.02f);
+            if (distance >= 8f && distance < 20f) AddReward(0.01f);
 
             if (shouldAim && IsEnemyVisible())
             {
@@ -172,7 +190,7 @@ public class Player : Agent
         }
     }
 
-    public void OnShotFired() => AddReward(-0.005f);
+    public void OnShotFired() => AddReward(-0.02f);
 
     public void GetHit()
     {
@@ -220,7 +238,7 @@ public class Player : Agent
         }
         else
         {
-            AddReward(-0.05f);
+            AddReward(-0.08f);
         }
     }
 
