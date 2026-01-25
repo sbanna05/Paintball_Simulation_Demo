@@ -190,7 +190,7 @@ public class Player : Agent
         }
     }
 
-    public void OnShotFired() => AddReward(-0.02f);
+    public void OnShotFired() => AddReward(-0.01f);
 
     public void GetHit()
     {
@@ -224,7 +224,7 @@ public class Player : Agent
 
         if (tag == targetTag)
         {
-            AddReward(20.0f); // GYŐZELEM
+            AddReward(40.0f); // GYŐZELEM
             Debug.Log("<color=green>DIRECT HIT!</color>");
             EndEpisode();
         }
@@ -238,7 +238,7 @@ public class Player : Agent
         }
         else
         {
-            AddReward(-0.08f);
+            AddReward(-0.05f);
         }
     }
 
