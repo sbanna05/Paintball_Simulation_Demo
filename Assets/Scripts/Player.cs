@@ -232,7 +232,7 @@ public class Player : Agent
         {
             if (hitObject.transform.root != transform)
             {
-                AddReward(0.5f);
+                AddReward(0.4f);
                 Debug.Log("<color=yellow>NEAR MISS!</color>");
             }
         }
