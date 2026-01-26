@@ -139,7 +139,8 @@ public class Player : Agent
             if (!IsHeuristic())
             {
                 transform.Rotate(Vector3.up, lookX * 200f * Time.deltaTime);
-                inputs.look = Vector2.zero;
+                //inputs.look = Vector2.zero;
+                inputs.look = new Vector2(lookX, lookY);
             }
             else
             {
@@ -190,7 +191,7 @@ public class Player : Agent
         }
     }
 
-    public void OnShotFired() => AddReward(-0.015f);
+    public void OnShotFired() => AddReward(-0.02f);
 
     public void GetHit()
     {
@@ -232,7 +233,7 @@ public class Player : Agent
         {
             if (hitObject.transform.root != transform)
             {
-                AddReward(0.4f);
+                AddReward(0.2f);
                 Debug.Log("<color=yellow>NEAR MISS!</color>");
             }
         }
