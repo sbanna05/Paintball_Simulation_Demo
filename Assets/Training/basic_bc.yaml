@@ -19,14 +19,6 @@ behaviors:
       extrinsic:
         gamma: 0.99
         strength: 1.0
-      gail:
-        gamma: 0.99
-        strength: 0.5
-        demo_path: C:\Users\Anna\Documents\tananyagok\Egyetemes\5th\szakdoga\Paintball_Simulation_Demo\Assets\Demonstrations\BasicMultiRay.demo
-    behavioral_cloning:
-      demo_path: C:\Users\Anna\Documents\tananyagok\Egyetemes\5th\szakdoga\Paintball_Simulation_Demo\Assets\Demonstrations\BasicMultiRay.demo
-      strength: 0.2
-      steps: 500000
     max_steps: 4000000
     time_horizon: 128
     summary_freq: 10000

@@ -153,7 +153,7 @@ public class Player : Agent
             
         }
 
-        AddReward(-0.0001f);
+        AddReward(-0.001f);
 
         if (aimTarget != null && !IsHeuristic())
         {
@@ -174,7 +174,7 @@ public class Player : Agent
             }
 
             if (distance < 8) AddReward(-0.02f);
-            if (distance >= 8f && distance < 20f) AddReward(0.01f);
+            if (distance >= 10f && distance < 25f) AddReward(0.01f);
 
             if (shouldAim && IsEnemyVisible())
             {
@@ -190,7 +190,7 @@ public class Player : Agent
         }
     }
 
-    public void OnShotFired() => AddReward(-0.01f);
+    public void OnShotFired() => AddReward(-0.015f);
 
     public void GetHit()
     {
