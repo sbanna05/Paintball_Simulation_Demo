@@ -26,6 +26,7 @@ public class Player : Agent
     private float episodeTimer;
     private bool isSpawning;
     private string targetTag = "Enemy";
+    private bool hasSeenTarget = false;
 
     public override void Initialize()
     {
@@ -40,6 +41,7 @@ public class Player : Agent
     public override void OnEpisodeBegin()
     {
         episodeTimer = 0f;
+        hasSeenTarget = false;
         StartCoroutine(SafeSpawnWithDummy());
     }
 
@@ -154,7 +156,7 @@ public class Player : Agent
             
         }
 
-        AddReward(-0.001f);
+        AddReward(-0.0001f);
 
         if (aimTarget != null && !IsHeuristic())
         {
@@ -169,29 +171,44 @@ public class Player : Agent
             Vector3 toEnemy = (enemyTarget.position - transform.position).normalized;
             float dot = Vector3.Dot(transform.forward, toEnemy);
 
-            if (dot > 0.5f)
-            {
-                AddReward(0.005f * dot);
-            }
-
-            if (distance < 8) AddReward(-0.02f);
-            if (distance >= 10f && distance < 25f) AddReward(0.01f);
+            float idealDistance = 15f;  // Optimális távolság
+            float distanceDelta = Mathf.Abs(distance - idealDistance);
+            float distanceReward = Mathf.Exp(-distanceDelta * distanceDelta / 50f) * 0.02f;
+            AddReward(distanceReward); ;
 
             if (shouldAim && IsEnemyVisible())
             {
-                AddReward(0.01f);
+                float aimQuality = Mathf.Pow(dot, 4); 
+                AddReward(aimQuality * 0.05f);
+
+                if (aimTarget != null)
+                {
+                    Vector3 toEnemyWorld = enemyTarget.position - aimTarget.position;
+                    float verticalDot = Vector3.Dot(transform.forward, toEnemyWorld.normalized);
+                    if (verticalDot > 0.98f)  // Nagyon pontos
+                    {
+                        AddReward(0.03f);
+                    }
+                }
+            }
+
+            if (!hasSeenTarget && IsEnemyVisible())
+            {
+                hasSeenTarget = true;
+                AddReward(2.0f);  // Bonus a target megtalálásáért!
+                Debug.Log("<color=cyan>TARGET ACQUIRED!</color>");
             }
         }
 
         if (episodeTimer >= maxEpisodeTime)
         {
-            AddReward(-5.0f);
+            AddReward(-10.0f);
             Debug.Log("<color=red>timeout!</color>");
             EndEpisode();
         }
     }
 
-    public void OnShotFired() => AddReward(-0.02f);
+    public void OnShotFired() => AddReward(-0.0001f);
 
     public void GetHit()
     {
@@ -225,7 +242,7 @@ public class Player : Agent
 
         if (tag == targetTag)
         {
-            AddReward(40.0f); // GYŐZELEM
+            AddReward(50.0f);
             Debug.Log("<color=green>DIRECT HIT!</color>");
             EndEpisode();
         }

@@ -3,7 +3,7 @@ behaviors:
     trainer_type: ppo
     hyperparameters:
       batch_size: 1024
-      buffer_size: 10240
+      buffer_size: 20480
       learning_rate: 0.0002
       beta: 0.01
       epsilon: 0.25
@@ -19,6 +19,15 @@ behaviors:
       extrinsic:
         gamma: 0.99
         strength: 1.0
+      gail:
+        gamma: 0.99
+        strength: 0.4
+        demo_path: ../Demonstrations/ShootDemo.demo
+        learning_rate: 0.0002
+    behavioral_cloning:
+      strength: 0.5
+      demo_path: ../Demonstrations/ShootDemo.demo
+      max_steps: 400000
     max_steps: 4000000
     time_horizon: 128
     summary_freq: 10000
