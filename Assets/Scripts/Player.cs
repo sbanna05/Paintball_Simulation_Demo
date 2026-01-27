@@ -156,7 +156,7 @@ public class Player : Agent
             
         }
 
-        AddReward(-0.0001f);
+        AddReward(-0.0002f);
 
         if (aimTarget != null && !IsHeuristic())
         {
@@ -165,18 +165,18 @@ public class Player : Agent
             aimTarget.localPosition = lp;
         }
 
-        if (enemyTarget != null)
+        if (enemyTarget != null && IsEnemyVisible())
         {
             float distance = Vector3.Distance(transform.position, enemyTarget.position);
             Vector3 toEnemy = (enemyTarget.position - transform.position).normalized;
             float dot = Vector3.Dot(transform.forward, toEnemy);
 
-            float idealDistance = 15f;  // Optimális távolság
+            float idealDistance = 15f;
             float distanceDelta = Mathf.Abs(distance - idealDistance);
             float distanceReward = Mathf.Exp(-distanceDelta * distanceDelta / 50f) * 0.02f;
             AddReward(distanceReward); ;
 
-            if (shouldAim && IsEnemyVisible())
+            if (shouldAim)
             {
                 float aimQuality = Mathf.Pow(dot, 4); 
                 AddReward(aimQuality * 0.05f);
@@ -195,14 +195,14 @@ public class Player : Agent
             if (!hasSeenTarget && IsEnemyVisible())
             {
                 hasSeenTarget = true;
-                AddReward(2.0f);  // Bonus a target megtalálásáért!
+                AddReward(0.15f);
                 Debug.Log("<color=cyan>TARGET ACQUIRED!</color>");
             }
         }
 
         if (episodeTimer >= maxEpisodeTime)
         {
-            AddReward(-10.0f);
+            AddReward(-20.0f);
             Debug.Log("<color=red>timeout!</color>");
             EndEpisode();
         }
