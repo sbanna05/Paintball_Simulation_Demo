@@ -56,12 +56,12 @@ public class Player : Agent
         if (characterController) characterController.enabled = false;
 
         // 2. Input reset
-        if (inputs) { 
+        if (inputs) {
             inputs.move = Vector2.zero;
             inputs.look = Vector2.zero;
             inputs.aim = false;
             inputs.jump = false;
-            inputs.shoot = false; 
+            inputs.shoot = false;
         }
 
         yield return new WaitForFixedUpdate();
@@ -153,7 +153,7 @@ public class Player : Agent
             inputs.shoot = shouldShoot;
             inputs.jump = false;
             inputs.sprint = shouldSprint;
-            
+
         }
 
         AddReward(-0.0002f);
@@ -165,50 +165,53 @@ public class Player : Agent
             aimTarget.localPosition = lp;
         }
 
-        if (enemyTarget != null && IsEnemyVisible())
+        if (enemyTarget != null)
         {
-            float distance = Vector3.Distance(transform.position, enemyTarget.position);
-            Vector3 toEnemy = (enemyTarget.position - transform.position).normalized;
-            float dot = Vector3.Dot(transform.forward, toEnemy);
+            Vector3 toEnemy = enemyTarget.position - transform.position;
+            float distance = toEnemy.magnitude;
 
-            float idealDistance = 15f;
-            float distanceDelta = Mathf.Abs(distance - idealDistance);
-            float distanceReward = Mathf.Exp(-distanceDelta * distanceDelta / 50f) * 0.02f;
-            AddReward(distanceReward); ;
+            Vector3 aimDir = shooterController.gunBarrel.forward;
+            float aimDot = Vector3.Dot(aimDir, toEnemy.normalized);
 
-            if (shouldAim)
+            if (distance >= 10 && distance <= 25)
+                AddReward(0.01f);
+
+            else if (distance < 8f)
             {
-                float aimQuality = Mathf.Pow(dot, 4); 
-                AddReward(aimQuality * 0.05f);
+                // Minél közelebb megy, annál exponenciálisan nagyobb a büntetés
+                float proximityPenalty = (8f - distance) * -0.01f;
+                AddReward(proximityPenalty - 0.02f);
+            }           
 
-                if (aimTarget != null)
+            bool seen = IsEnemyVisible();
+
+            if (seen)
+            {
+                AddReward(0.001f);
+
+                if (shouldShoot && aimDot > 0.9f)
                 {
-                    Vector3 toEnemyWorld = enemyTarget.position - aimTarget.position;
-                    float verticalDot = Vector3.Dot(transform.forward, toEnemyWorld.normalized);
-                    if (verticalDot > 0.98f)  // Nagyon pontos
-                    {
-                        AddReward(0.03f);
-                    }
+                    float distanceMultiplier = Mathf.Clamp(distance / 15f, 0.5f, 1.2f);
+                    AddReward(0.02f * aimDot * distanceMultiplier);
+                }
+                if (!hasSeenTarget)
+                {
+                    hasSeenTarget = true;
+                    AddReward(2f);
+                    Debug.Log("<color=cyan>TARGET ACQUIRED!</color>");
                 }
             }
 
-            if (!hasSeenTarget && IsEnemyVisible())
-            {
-                hasSeenTarget = true;
-                AddReward(0.15f);
-                Debug.Log("<color=cyan>TARGET ACQUIRED!</color>");
-            }
-        }
-
-        if (episodeTimer >= maxEpisodeTime)
-        {
-            AddReward(-20.0f);
-            Debug.Log("<color=red>timeout!</color>");
-            EndEpisode();
+             if (episodeTimer >= maxEpisodeTime)
+             {
+               AddReward(-20.0f);
+               Debug.Log("<color=red>timeout!</color>");
+               EndEpisode();              
+             }
         }
     }
 
-    public void OnShotFired() => AddReward(-0.0001f);
+    public void OnShotFired() {}
 
     public void GetHit()
     {
@@ -242,7 +245,7 @@ public class Player : Agent
 
         if (tag == targetTag)
         {
-            AddReward(50.0f);
+            AddReward(60f);
             Debug.Log("<color=green>DIRECT HIT!</color>");
             EndEpisode();
         }
@@ -250,7 +253,7 @@ public class Player : Agent
         {
             if (hitObject.transform.root != transform)
             {
-                AddReward(0.2f);
+                AddReward(3f);
                 Debug.Log("<color=yellow>NEAR MISS!</color>");
             }
         }

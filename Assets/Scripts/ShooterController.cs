@@ -13,7 +13,7 @@ public class ShooterController : MonoBehaviour
     [Header("Shooting")]
     [SerializeField] private LayerMask aimMask;
     [SerializeField] private Transform bulletPrefab;
-    [SerializeField] private Transform gunBarrel;
+    [SerializeField] public Transform gunBarrel;
     [SerializeField] private float shootCooldown = 0.3f;
 
     [Header("Sensitivity")]
