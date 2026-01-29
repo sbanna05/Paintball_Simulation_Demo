@@ -27,6 +27,7 @@ public class Player : Agent
     private bool isSpawning;
     private string targetTag = "Enemy";
     private bool hasSeenTarget = false;
+    private float distance;
 
     public override void Initialize()
     {
@@ -172,18 +173,18 @@ public class Player : Agent
         if (enemyTarget != null)
         {
             Vector3 toEnemy = enemyTarget.position - transform.position;
-            float distance = toEnemy.magnitude;
+            distance = toEnemy.magnitude;
 
             Vector3 aimDir = shooterController.gunBarrel.forward;
             float aimDot = Vector3.Dot(aimDir, toEnemy.normalized);
 
             if(distance < 8f)
             {
-                AddReward(-0.04f);
+                AddReward(-0.02f);
             }
             else if (distance > 10f && distance < 20f)
             {
-                AddReward(0.0015f);
+                AddReward(0.002f);
             }
 
             bool seen = IsEnemyVisible();
@@ -254,10 +255,14 @@ public class Player : Agent
 
         if (tag == targetTag)
         {
-           float bonus = Mathf.Clamp01(1f - episodeTimer / maxEpisodeTime); ;
-           AddReward(60f * bonus);
-           Debug.Log("<color=green>DIRECT HIT!</color>");
-           EndEpisode();
+            float timeBonus = Mathf.Clamp01(1f - episodeTimer / maxEpisodeTime);
+            float distanceBonus = Mathf.Clamp(Vector3.Distance(transform.position, enemyTarget.position) / 10f, 0.5f, 2.0f);
+
+            float finalReward = 60.0f * distanceBonus + 10f * timeBonus  ;
+
+            AddReward(finalReward);
+            Debug.Log($"<color=green>DIRECT HIT! Dist Mult: {distanceBonus}  Distance: {distance} reward: {finalReward}</color>");
+            EndEpisode();
         }
         else if (tag == "NearMiss")
         {
@@ -269,7 +274,7 @@ public class Player : Agent
         }
         else
         {
-            AddReward(-0.05f);
+            AddReward(-0.1f);
         }
     }
 
