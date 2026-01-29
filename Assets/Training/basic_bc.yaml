@@ -4,9 +4,9 @@ behaviors:
     hyperparameters:
       batch_size: 1024
       buffer_size: 20480
-      learning_rate: 0.00025
-      beta: 0.0075
-      epsilon: 0.2
+      learning_rate: 0.0002
+      beta: 0.02
+      epsilon: 0.25
       lambd: 0.95
       num_epoch: 3
       learning_rate_schedule: linear
@@ -22,10 +22,10 @@ behaviors:
       gail:
         gamma: 0.99
         strength: 0.1
-        demo_path: ../Demonstrations/ShootDemo.demo
+        demo_path: ../Demonstrations/ShooterAgent.demo
     behavioral_cloning:
       strength: 0.2
-      demo_path: ../Demonstrations/ShootDemo.demo
+      demo_path: ../Demonstrations/ShooterAgent.demo
       steps: 300000
     max_steps: 4000000
     time_horizon: 128

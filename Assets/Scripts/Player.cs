@@ -117,6 +117,10 @@ public class Player : Agent
 
         if (aimTarget != null) sensor.AddObservation(aimTarget.localPosition.y / 5f);
         else sensor.AddObservation(0f);
+
+        Vector3 gunToEnemy = enemyTarget.position - shooterController.gunBarrel.position;
+        sensor.AddObservation(gunToEnemy.normalized.y);
+
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -173,26 +177,24 @@ public class Player : Agent
             Vector3 aimDir = shooterController.gunBarrel.forward;
             float aimDot = Vector3.Dot(aimDir, toEnemy.normalized);
 
-            if (distance >= 10 && distance <= 25)
-                AddReward(0.01f);
-
-            else if (distance < 8f)
+            if(distance < 8f)
             {
-                // Minél közelebb megy, annál exponenciálisan nagyobb a büntetés
-                float proximityPenalty = (8f - distance) * -0.01f;
-                AddReward(proximityPenalty - 0.02f);
-            }           
+                AddReward(-0.04f);
+            }
+            else if (distance > 10f && distance < 20f)
+            {
+                AddReward(0.0015f);
+            }
 
             bool seen = IsEnemyVisible();
 
             if (seen)
             {
-                AddReward(0.001f);
+                AddReward(0.0005f);
 
-                if (shouldShoot && aimDot > 0.9f)
+                if (shouldAim && shouldShoot && aimDot > 0.85)
                 {
-                    float distanceMultiplier = Mathf.Clamp(distance / 15f, 0.5f, 1.2f);
-                    AddReward(0.02f * aimDot * distanceMultiplier);
+                    AddReward(0.002f * aimDot);
                 }
                 if (!hasSeenTarget)
                 {
@@ -203,15 +205,22 @@ public class Player : Agent
             }
 
              if (episodeTimer >= maxEpisodeTime)
-             {
-               AddReward(-20.0f);
-               Debug.Log("<color=red>timeout!</color>");
-               EndEpisode();              
-             }
+            {
+                AddReward(-20.0f);
+                Debug.Log("<color=red>timeout!</color>");
+                EndEpisode();
+            }
         }
     }
 
-    public void OnShotFired() {}
+    public void OnShotFired()
+    {
+        if (!IsEnemyVisible())
+            AddReward(-0.01f);
+        else
+            AddReward(-0.002f);
+    }
+
 
     public void GetHit()
     {
@@ -245,9 +254,10 @@ public class Player : Agent
 
         if (tag == targetTag)
         {
-            AddReward(60f);
-            Debug.Log("<color=green>DIRECT HIT!</color>");
-            EndEpisode();
+           float bonus = Mathf.Clamp01(1f - episodeTimer / maxEpisodeTime); ;
+           AddReward(60f * bonus);
+           Debug.Log("<color=green>DIRECT HIT!</color>");
+           EndEpisode();
         }
         else if (tag == "NearMiss")
         {
