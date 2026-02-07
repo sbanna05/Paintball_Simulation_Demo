@@ -116,7 +116,7 @@ public class Player : Agent
         }
         else { sensor.AddObservation(Vector3.zero); sensor.AddObservation(0f); sensor.AddObservation(0f); }
 
-        if (aimTarget != null) sensor.AddObservation(aimTarget.localPosition.y / 5f);
+        if (aimTarget != null) sensor.AddObservation(aimTarget.localPosition.y / 3f);
         else sensor.AddObservation(0f);
 
         Vector3 gunToEnemy = enemyTarget.position - shooterController.gunBarrel.position;
@@ -167,6 +167,7 @@ public class Player : Agent
         {
             Vector3 lp = aimTarget.localPosition;
             lp.y = Mathf.Clamp(lp.y + (lookY * Time.deltaTime * 5f), 0.5f, 3.5f);
+            lp.x = Mathf.Clamp(lp.x + (lookX * Time.deltaTime * 5f), -2f, 2f);
             aimTarget.localPosition = lp;
         }
 
@@ -178,9 +179,11 @@ public class Player : Agent
             Vector3 aimDir = shooterController.gunBarrel.forward;
             float aimDot = Vector3.Dot(aimDir, toEnemy.normalized);
 
-            if(distance < 8f)
+            if (distance < 8f)
             {
-                AddReward(-0.02f);
+                /*float proximityPenalty = Mathf.Pow(10f - distance, 2) * -0.02f;
+                AddReward(proximityPenalty - 0.02f);*/
+                AddReward(-0.005f);
             }
             else if (distance > 10f && distance < 20f)
             {
@@ -256,19 +259,27 @@ public class Player : Agent
         if (tag == targetTag)
         {
             float timeBonus = Mathf.Clamp01(1f - episodeTimer / maxEpisodeTime);
-            float distanceBonus = Mathf.Clamp(Vector3.Distance(transform.position, enemyTarget.position) / 10f, 0.5f, 2.0f);
+            float distanceBonus = Mathf.Clamp(Vector3.Distance(transform.position, enemyTarget.position) / 15f, 0.5f, 2.0f);
 
-            float finalReward = 60.0f * distanceBonus + 10f * timeBonus  ;
+            float finalReward = 60.0f * distanceBonus + 10f * timeBonus;
 
-            AddReward(finalReward);
-            Debug.Log($"<color=green>DIRECT HIT! Dist Mult: {distanceBonus}  Distance: {distance} reward: {finalReward}</color>");
-            EndEpisode();
+            if (distance < 8f)
+            {
+                AddReward(-5f);
+                Debug.Log($"<color=red>TOO CLOSE! {distance}</color>");
+            }
+            else
+            {
+                AddReward(finalReward);
+                Debug.Log($"<color=green>DIRECT HIT! Dist Mult: {distanceBonus}  Distance: {distance} reward: {finalReward}</color>");
+            }
+                EndEpisode();
         }
         else if (tag == "NearMiss")
         {
             if (hitObject.transform.root != transform)
             {
-                AddReward(3f);
+                AddReward(2f);
                 Debug.Log("<color=yellow>NEAR MISS!</color>");
             }
         }
