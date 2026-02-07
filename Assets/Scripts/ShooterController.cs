@@ -20,7 +20,7 @@ public class ShooterController : MonoBehaviour
     [SerializeField] private float aimSensitivity = 0.5f;
 
     private StarterAssetsInputs _inputs;
-    private Player _agent;
+    private SimplePlayerAgent _agent;
     private ThirdPersonController _tpc;
     private Animator _anim;
     private float _lastShootTime;
@@ -28,7 +28,7 @@ public class ShooterController : MonoBehaviour
     private void Awake()
     {
         _inputs = GetComponent<StarterAssetsInputs>();
-        _agent = GetComponent<Player>();
+        _agent = GetComponent<SimplePlayerAgent>();
         _tpc = GetComponent<ThirdPersonController>();
         _anim = GetComponent<Animator>();
     }

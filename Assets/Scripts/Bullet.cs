@@ -8,7 +8,7 @@ public class Bullet : MonoBehaviour
 
     private Rigidbody bulletRigidBody;
     private float bulletSpeed = 50f;
-    private Player ownerAgent;
+    private SimplePlayerAgent ownerAgent;
 
     private void Awake()
     {
@@ -24,7 +24,7 @@ public class Bullet : MonoBehaviour
         Destroy(gameObject, 3f);
     }
 
-    public void SetOwner(Player agent)
+    public void SetOwner(SimplePlayerAgent agent)
     {
         ownerAgent = agent;
     }
@@ -50,14 +50,13 @@ public class Bullet : MonoBehaviour
         // Near miss
         if (hitNearMiss && ownerAgent != null)
         {
-            //Debug.Log("NEAR MISS!");
             ownerAgent.RegisterHit("NearMiss", other.gameObject);
             return;
         }
         if (hitTarget)
         {
             ownerAgent.RegisterHit("Player", other.gameObject);
-            Player victim = other.GetComponent<Player>();
+            SimplePlayerAgent victim = other.GetComponent<SimplePlayerAgent>();
             if (victim != null) victim.GetHit();
 
             Destroy(gameObject);
