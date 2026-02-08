@@ -105,8 +105,6 @@ public class SimplePlayerAgent : Agent
 
         Vector3 gunToEnemy = opponentAgent.transform.position - shooterController.gunBarrel.position;
         sensor.AddObservation(gunToEnemy.normalized.y);
-
-
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -158,15 +156,14 @@ public class SimplePlayerAgent : Agent
 
         if (opponentAgent != null)
         {
-            float distance = Vector3.Distance(transform.position, opponentAgent.transform.position);
+            float distance = Vector3.Distance(shooterController.gunBarrel.position, opponentAgent.transform.position);
 
-            // 1. Távolságtartás (Halálzóna büntetés 8m alatt)
             if (distance < 8f)
             {
                 float proximityPenalty = Mathf.Pow(8f - distance, 2) * -0.01f;
                 AddReward(proximityPenalty - 0.005f);
             }
-            // 2. Sniper zóna jutalom (10m - 25m)
+
             else if (distance >= 10f && distance <= 25f)
             {
                 AddReward(0.005f);
@@ -188,7 +185,7 @@ public class SimplePlayerAgent : Agent
                 if (!hasSeenTarget)
                 {
                     hasSeenTarget = true;
-                    AddReward(2f);
+                    //AddReward(2f);
                     Debug.Log("<color=cyan>TARGET ACQUIRED!</color>");
                 }
             }
@@ -227,8 +224,7 @@ public class SimplePlayerAgent : Agent
         {
             if (distance < 8.0f)
             {
-                AddReward(-2.0f);
-                Debug.Log($"<color=red>TOO CLOSE! Dist: {distance:F1}m | Penalty: -2.0</color>");
+                Debug.Log($"<color=red>TOO CLOSE! Dist: {distance:F1}m</color>");
             }
             else
             {
