@@ -169,7 +169,7 @@ public class SimplePlayerAgent : Agent
             // 2. Sniper zóna jutalom (10m - 25m)
             else if (distance >= 10f && distance <= 25f)
             {
-                AddReward(0.002f);
+                AddReward(0.005f);
             }
 
             // 3. Célzás és láthatóság
@@ -221,24 +221,34 @@ public class SimplePlayerAgent : Agent
     public void RegisterHit(string tag, GameObject hitObject)
     {
         if (isSpawning) return;
+        float distance = Vector3.Distance(transform.position, hitObject.transform.position);
 
         if (tag == targetTag)
         {
-            float distance = Vector3.Distance(transform.position, opponentAgent.transform.position);
-            float timeBonus = Mathf.Clamp01(1f - episodeTimer / maxEpisodeTime);
+            if (distance < 8.0f)
+            {
+                AddReward(-2.0f);
+                Debug.Log($"<color=red>TOO CLOSE! Dist: {distance:F1}m | Penalty: -2.0</color>");
+            }
+            else
+            {
+                float timeBonus = Mathf.Clamp01(1f - episodeTimer / maxEpisodeTime);
+                float distanceMultiplier = Mathf.Clamp(distance / 10f, 1.0f, 3.0f);
+                float finalReward = (60f * distanceMultiplier) + (10f * timeBonus);
 
-            // Távolsági szorzó: 15m az alap, felette bónusz
-            float distanceMultiplier = Mathf.Clamp(distance / 15f, 0.5f, 2.5f);
-            float reward = (60f * distanceMultiplier) + (10f * timeBonus);
+                AddReward(finalReward);
+                Debug.Log($"<color=green>SNIPER HIT! Dist: {distance:F1}m | Reward: {finalReward:F1}</color>");
+            }
 
-            AddReward(reward);
-            Debug.Log($"<color=green>DIRECT HIT! Dist: {distance:F1}m | Reward: {reward:F1}</color>");
             EndEpisode();
-        }       
+        }
         else if (tag == "NearMiss")
         {
-            AddReward(0.5f);
-            Debug.Log("<color=yellow>NEAR MISS!</color>");
+            if (distance > 8f)
+            {
+                AddReward(0.5f);
+                Debug.Log("<color=yellow>NEAR MISS (Safe Dist)!</color>");
+            }
         }
         else
         {
