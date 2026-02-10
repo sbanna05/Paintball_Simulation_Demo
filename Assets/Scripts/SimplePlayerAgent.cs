@@ -16,6 +16,13 @@ public class SimplePlayerAgent : Agent
     [Header("Spawn Settings")]
     [SerializeField] private Transform[] agentSpawnPoints;
 
+    [Header("Inference Settings")]
+    [SerializeField] private float lookSmoothing = 0.4f;
+    [SerializeField] private float moveSmoothing = 0.1f;
+
+    private Vector2 smoothLook;
+    private Vector2 smoothMove;
+
     private StarterAssetsInputs inputs;
     private CharacterController characterController;
     private RayPerceptionSensorComponent3D raySensor;
@@ -23,7 +30,7 @@ public class SimplePlayerAgent : Agent
     private RigBuilder rigBuilder;
     private ThirdPersonController tpc;
 
-    private float maxEpisodeTime = 120f;
+    private float maxEpisodeTime = 100f;
     private float episodeTimer;
     private bool isSpawning;
     private string targetTag = "Player";
@@ -42,7 +49,8 @@ public class SimplePlayerAgent : Agent
     public override void OnEpisodeBegin()
     {
         episodeTimer = 0f;
-        hasSeenTarget = false;
+        smoothLook = Vector2.zero;
+        smoothMove = Vector2.zero;
         StartCoroutine(SafeSpawn());
     }
 
@@ -62,17 +70,21 @@ public class SimplePlayerAgent : Agent
             inputs.aim = false;
             inputs.jump = false;
             inputs.shoot = false;
+            inputs.sprint = false;
         }
 
         yield return new WaitForFixedUpdate();
 
-        if (agentSpawnPoints.Length > 0)
+        if (agentSpawnPoints != null && agentSpawnPoints.Length > 0)
         {
             int idx = Random.Range(0, agentSpawnPoints.Length);
             transform.SetPositionAndRotation(agentSpawnPoints[idx].position, agentSpawnPoints[idx].rotation);
         }
 
-        if (aimTarget) aimTarget.localPosition = new Vector3(0, 1.5f, 10f);
+        if (aimTarget)
+        {
+            aimTarget.localPosition = new Vector3(0, 1.5f, 10f);
+        }
 
         Physics.SyncTransforms();
         yield return new WaitForSeconds(0.15f);
@@ -80,7 +92,7 @@ public class SimplePlayerAgent : Agent
         if (characterController) characterController.enabled = true;
         if (shooterController) shooterController.enabled = true;
         if (rigBuilder) rigBuilder.enabled = true;
-        if (tpc) { tpc.enabled = true; }
+        if (tpc) tpc.enabled = true;
 
         isSpawning = false;
     }
@@ -92,148 +104,123 @@ public class SimplePlayerAgent : Agent
         if (opponentAgent != null)
         {
             Vector3 toTarget = opponentAgent.transform.position - transform.position;
-            sensor.AddObservation(toTarget.normalized);
-            sensor.AddObservation(toTarget.magnitude / 50f);
+            sensor.AddObservation(toTarget.normalized); // 3
+            sensor.AddObservation(toTarget.magnitude / 50f); // 1
 
             float dot = Vector3.Dot(transform.forward, toTarget.normalized);
-            sensor.AddObservation(dot);
-        }
-        else { sensor.AddObservation(Vector3.zero); sensor.AddObservation(0f); sensor.AddObservation(0f); }
+            sensor.AddObservation(dot); // 1
 
-        if (aimTarget != null) sensor.AddObservation(aimTarget.localPosition.y / 3f);
-        else sensor.AddObservation(0f);
+            Vector3 localEnemyDir = transform.InverseTransformDirection(toTarget.normalized);
+            sensor.AddObservation(localEnemyDir); //3
+        }
+        else
+        {
+            sensor.AddObservation(Vector3.zero);
+            sensor.AddObservation(0f);
+            sensor.AddObservation(0f);
+        }
+
+        if (aimTarget != null)
+        {
+            sensor.AddObservation(aimTarget.localPosition.y / 3f); //1
+        }
 
         Vector3 gunToEnemy = opponentAgent.transform.position - shooterController.gunBarrel.position;
-        sensor.AddObservation(gunToEnemy.normalized.y);
+        sensor.AddObservation(gunToEnemy.normalized.y); //1    
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
         if (isSpawning) return;
+
         episodeTimer += Time.fixedDeltaTime;
 
-        float moveX = actions.ContinuousActions[0];
-        float moveZ = actions.ContinuousActions[1];
-        float lookX = actions.ContinuousActions[2];
-        float lookY = actions.ContinuousActions[3];
+        float rawMoveX = actions.ContinuousActions[0];
+        float rawMoveZ = actions.ContinuousActions[1];
+        float rawLookX = actions.ContinuousActions[2];
+        float rawLookY = actions.ContinuousActions[3];
 
         bool shouldAim = actions.DiscreteActions[0] == 1;
         bool shouldShoot = actions.DiscreteActions[1] == 1;
         bool shouldJump = actions.DiscreteActions[2] == 1;
         bool shouldSprint = actions.DiscreteActions[3] == 1;
 
+        smoothMove = Vector2.Lerp(smoothMove, new Vector2(rawMoveX, rawMoveZ), 1f - moveSmoothing);
+        smoothLook = Vector2.Lerp(smoothLook, new Vector2(rawLookX, rawLookY), 1f - lookSmoothing);
+
         if (inputs != null)
         {
-            inputs.move = new Vector2(moveX, moveZ);
-
-            if (!IsHeuristic())
-            {
-                transform.Rotate(Vector3.up, lookX * 200f * Time.deltaTime);
-                inputs.look = new Vector2(lookX, lookY);
-            }
-            else
-            {
-                inputs.look = new Vector2(lookX, lookY);
-            }
-
+            inputs.move = smoothMove;
+            inputs.look = IsHeuristic() ? new Vector2(rawLookX, rawLookY) : smoothLook;
             inputs.aim = shouldAim;
             inputs.shoot = shouldShoot;
             inputs.jump = false;
             inputs.sprint = shouldSprint;
-
         }
 
-        // Vertikális célzás (AimTarget IK)
         if (aimTarget != null && !IsHeuristic())
         {
             Vector3 lp = aimTarget.localPosition;
-            lp.y = Mathf.Clamp(lp.y + (lookY * Time.deltaTime * 3f), 0.5f, 4f);
+            lp.y = Mathf.Clamp(lp.y + (rawLookY * Time.deltaTime * 3f), 0.5f, 4f);
             aimTarget.localPosition = lp;
         }
 
-        // --- JUTALMAZÁSI LOGIKA ---
-        AddReward(-0.0002f);
+        AddReward(-0.00005f);
 
         if (opponentAgent != null)
         {
-            float distance = Vector3.Distance(shooterController.gunBarrel.position, opponentAgent.transform.position);
+            float distance = Vector3.Distance(transform.position, opponentAgent.transform.position);
 
-            if (distance < 8f)
+            if (Time.frameCount % 5 == 0)
             {
-                float proximityPenalty = Mathf.Pow(8f - distance, 2) * -0.01f;
-                AddReward(proximityPenalty - 0.005f);
-            }
-
-            else if (distance >= 10f && distance <= 25f)
-            {
-                AddReward(0.005f);
-            }
-
-            // 3. Célzás és láthatóság
-            if (IsEnemyVisible())
-            {
-                AddReward(0.001f); // Látómezőben tartás
-
-                Vector3 dirToTarget = (opponentAgent.transform.position - transform.position).normalized;
-                float dot = Vector3.Dot(shooterController.gunBarrel.forward, dirToTarget);
-
-                if (dot > 0.85f)
-                {
-                    AddReward(0.005f * dot); // Pontos célzás bónusz
-                }
-
-                if (!hasSeenTarget)
-                {
-                    hasSeenTarget = true;
-                    //AddReward(2f);
-                    Debug.Log("<color=cyan>TARGET ACQUIRED!</color>");
-                }
+                if (distance < 8f) AddReward(-0.002f);
+                else if (distance >= 10f && distance <= 25f) AddReward(0.002f);
             }
         }
 
         if (episodeTimer >= maxEpisodeTime)
         {
             AddReward(-5f);
-            Debug.Log("Episode timeout");
+            Debug.Log($"[{gameObject.name}] TIMEOUT");
             EndEpisode();
         }
     }
 
     public void OnShotFired()
     {
-        if (IsEnemyVisible())
-           AddReward(-0.01f);
-        else
-           AddReward(-0.03f);
+        if (!IsEnemyVisible())
+            AddReward(-0.05f);
     }
 
     public void GetHit()
     {
         if (isSpawning) return;
         AddReward(-25.0f);
-        Debug.Log(gameObject.name + ": <color=red>ELTALÁLTAK</color>");
         EndEpisode();
     }
-
+   
     public void RegisterHit(string tag, GameObject hitObject)
     {
         if (isSpawning) return;
-        float distance = Vector3.Distance(transform.position, hitObject.transform.position);
+
+        if (shooterController == null || shooterController.gunBarrel == null) return;
+
+        float distance = Vector3.Distance(shooterController.gunBarrel.position, hitObject.transform.position);
 
         if (tag == targetTag)
         {
             if (distance < 8.0f)
             {
-                Debug.Log($"<color=red>TOO CLOSE! Dist: {distance:F1}m</color>");
+                Debug.Log($"[{gameObject.name}] <color=red>TOO CLOSE!</color> Dist: {distance:F1}m");
             }
             else
             {
                 float timeBonus = Mathf.Clamp01(1f - episodeTimer / maxEpisodeTime);
                 float distanceMultiplier = Mathf.Clamp(distance / 10f, 1.0f, 3.0f);
-                float finalReward = (60f * distanceMultiplier) + (10f * timeBonus);
+                float finalReward = (50f * distanceMultiplier) + (10f * timeBonus);
 
                 AddReward(finalReward);
-                Debug.Log($"<color=green>SNIPER HIT! Dist: {distance:F1}m | Reward: {finalReward:F1}</color>");
+                Debug.Log($"[{gameObject.name}] <color=green>HIT!</color> Dist: {distance:F1}m | Reward: {finalReward:F1}");
             }
 
             EndEpisode();
@@ -248,7 +235,7 @@ public class SimplePlayerAgent : Agent
         }
         else
         {
-            AddReward(-0.05f);
+            AddReward(-0.01f);
         }
     }
 
@@ -260,8 +247,10 @@ public class SimplePlayerAgent : Agent
         {
             if (ray.HitGameObject != null)
             {
-                if (ray.HitGameObject.CompareTag(targetTag) || ray.HitGameObject.CompareTag("NearMiss"))
+                if (ray.HitGameObject.CompareTag("Player") || ray.HitGameObject.CompareTag("NearMiss"))
+                {
                     return true;
+                }
             }
         }
         return false;
@@ -283,4 +272,5 @@ public class SimplePlayerAgent : Agent
     }
 
     public bool IsHeuristic() => GetComponent<BehaviorParameters>().BehaviorType == BehaviorType.HeuristicOnly;
+    public bool IsSpawning() => isSpawning;
 }

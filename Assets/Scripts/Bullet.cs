@@ -7,7 +7,7 @@ public class Bullet : MonoBehaviour
     [SerializeField] private LayerMask hitLayers;
 
     private Rigidbody bulletRigidBody;
-    private float bulletSpeed = 50f;
+    private float bulletSpeed = 60f;
     private SimplePlayerAgent ownerAgent;
 
     private void Awake()
@@ -21,7 +21,7 @@ public class Bullet : MonoBehaviour
         {
             bulletRigidBody.velocity = transform.forward * bulletSpeed;
         }
-        Destroy(gameObject, 3f);
+        Destroy(gameObject, 2f);
     }
 
     public void SetOwner(SimplePlayerAgent agent)
@@ -41,22 +41,18 @@ public class Bullet : MonoBehaviour
         //Debug.Log("Ütközés: " + other.name + " Layer: "  + LayerMask.LayerToName(other.gameObject.layer));
         //ownerAgent.RegisterHit(other.tag, other.gameObject);
 
+        SimplePlayerAgent victim = other.GetComponentInParent<SimplePlayerAgent>();
         Vector3 direction = bulletRigidBody.velocity.normalized;
 
-        // Check what we hit
-        bool hitTarget = other.CompareTag("Player"); // Direct hit on target
-        bool hitNearMiss = other.CompareTag("NearMiss"); // Near miss
-
-        // Near miss
-        if (hitNearMiss && ownerAgent != null)
+        if(other.CompareTag("NearMiss"))
         {
             ownerAgent.RegisterHit("NearMiss", other.gameObject);
             return;
         }
-        if (hitTarget)
+        if (other.CompareTag("Player"))
         {
             ownerAgent.RegisterHit("Player", other.gameObject);
-            SimplePlayerAgent victim = other.GetComponent<SimplePlayerAgent>();
+            //SimplePlayerAgent victim = other.GetComponent<SimplePlayerAgent>();
             if (victim != null) victim.GetHit();
 
             Destroy(gameObject);
