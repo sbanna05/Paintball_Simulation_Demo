@@ -118,15 +118,16 @@ public class SimplePlayerAgent : Agent
             sensor.AddObservation(Vector3.zero);
             sensor.AddObservation(0f);
             sensor.AddObservation(0f);
+            sensor.AddObservation(Vector3.zero);
         }
 
         if (aimTarget != null)
         {
             sensor.AddObservation(aimTarget.localPosition.y / 3f); //1
         }
-
-        Vector3 gunToEnemy = opponentAgent.transform.position - shooterController.gunBarrel.position;
-        sensor.AddObservation(gunToEnemy.normalized.y); //1    
+        
+         Vector3 gunToEnemy = opponentAgent.transform.position - shooterController.gunBarrel.position;
+         sensor.AddObservation(gunToEnemy.normalized.y); //1
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -145,13 +146,21 @@ public class SimplePlayerAgent : Agent
         bool shouldJump = actions.DiscreteActions[2] == 1;
         bool shouldSprint = actions.DiscreteActions[3] == 1;
 
-        smoothMove = Vector2.Lerp(smoothMove, new Vector2(rawMoveX, rawMoveZ), 1f - moveSmoothing);
-        smoothLook = Vector2.Lerp(smoothLook, new Vector2(rawLookX, rawLookY), 1f - lookSmoothing);
+        if (IsHeuristic())
+        {
+            smoothMove = Vector2.Lerp(smoothMove, new Vector2(rawMoveX, rawMoveZ), 1f - moveSmoothing);
+            smoothLook = Vector2.Lerp(smoothLook, new Vector2(rawLookX, rawLookY), 1f - lookSmoothing);
+        }
+        else
+        {
+            smoothMove = new Vector2(rawMoveX, rawMoveZ);
+            smoothLook = new Vector2(rawLookX, rawLookY);
+        }
 
         if (inputs != null)
         {
             inputs.move = smoothMove;
-            inputs.look = IsHeuristic() ? new Vector2(rawLookX, rawLookY) : smoothLook;
+            inputs.look = smoothLook; 
             inputs.aim = shouldAim;
             inputs.shoot = shouldShoot;
             inputs.jump = false;
@@ -169,21 +178,28 @@ public class SimplePlayerAgent : Agent
 
         if (opponentAgent != null)
         {
-            float distance = Vector3.Distance(transform.position, opponentAgent.transform.position);
+            Vector3 toEnemy = opponentAgent.transform.position - transform.position;
+            float distance = toEnemy.magnitude;
+            Vector3 toEnemyDir = toEnemy.normalized;
 
             if (Time.frameCount % 5 == 0)
             {
                 if (distance < 8f) AddReward(-0.002f);
                 else if (distance >= 10f && distance <= 25f) AddReward(0.002f);
             }
-            Vector3 toEnemy = (opponentAgent.transform.position - transform.position).normalized;
+
+            float bodyDot = Vector3.Dot(transform.forward, toEnemyDir);
+            if (bodyDot > 0.5f)
+            {
+                AddReward(0.001f);
+            }
 
             Vector3 gunDir = shooterController.gunBarrel.forward;
-            float aimDot = Vector3.Dot(gunDir, toEnemy);
+            float aimDot = Vector3.Dot(gunDir, toEnemyDir);
 
-            if (aimDot > 0.9f)
+            if (aimDot > 0.7f)
             {
-                AddReward((aimDot - 0.9f) * 0.05f);
+                AddReward((aimDot - 0.7f) * 0.1f);
             }
         }
 
@@ -204,10 +220,10 @@ public class SimplePlayerAgent : Agent
     public void GetHit()
     {
         if (isSpawning) return;
-        AddReward(-1.0f);
+        AddReward(-2.0f);
         EndEpisode();
     }
-   
+
     public void RegisterHit(string tag, GameObject hitObject)
     {
         if (isSpawning) return;
@@ -221,11 +237,12 @@ public class SimplePlayerAgent : Agent
             if (distance < 8.0f)
             {
                 Debug.Log($"[{gameObject.name}] <color=red>TOO CLOSE!</color> Dist: {distance:F1}m");
+                AddReward(1.0f);
             }
             else
             {
                 float bonus = Mathf.Clamp(distance / 15f, 0f, 1f);
-                float finalReward = 2.0f + bonus;
+                float finalReward = 8.0f + bonus;
                 AddReward(finalReward);
                 Debug.Log($"[{gameObject.name}] <color=green>HIT!</color> Dist: {distance:F1}m | Reward: {finalReward:F1}");
             }
@@ -236,7 +253,7 @@ public class SimplePlayerAgent : Agent
         {
             if (distance > 8f)
             {
-                AddReward(0.4f);
+                AddReward(0.2f);
                 Debug.Log("<color=yellow>NEAR MISS (Safe Dist)!</color>");
             }
         }
