@@ -2,11 +2,11 @@ behaviors:
   DoubleAgent:
     trainer_type: ppo
     hyperparameters:
-      batch_size: 1024
-      buffer_size: 20480
-      learning_rate: 0.00015
+      batch_size: 2048
+      buffer_size: 40960
+      learning_rate: 0.00005
       beta: 0.001
-      epsilon: 0.2
+      epsilon: 0.15
       lambd: 0.95
       num_epoch: 3
     network_settings:
@@ -24,4 +24,6 @@ behaviors:
     max_steps: 5000000
     time_horizon: 128
     summary_freq: 10000
+    checkpoint_interval: 100000
+    keep_checkpoints: 5
     threaded: true

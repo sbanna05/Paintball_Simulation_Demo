@@ -176,11 +176,20 @@ public class SimplePlayerAgent : Agent
                 if (distance < 8f) AddReward(-0.002f);
                 else if (distance >= 10f && distance <= 25f) AddReward(0.002f);
             }
+            Vector3 toEnemy = (opponentAgent.transform.position - transform.position).normalized;
+
+            Vector3 gunDir = shooterController.gunBarrel.forward;
+            float aimDot = Vector3.Dot(gunDir, toEnemy);
+
+            if (aimDot > 0.9f)
+            {
+                AddReward((aimDot - 0.9f) * 0.05f);
+            }
         }
 
         if (episodeTimer >= maxEpisodeTime)
         {
-            AddReward(-5f);
+            AddReward(-2.0f);
             Debug.Log($"[{gameObject.name}] TIMEOUT");
             EndEpisode();
         }
@@ -189,13 +198,13 @@ public class SimplePlayerAgent : Agent
     public void OnShotFired()
     {
         if (!IsEnemyVisible())
-            AddReward(-0.05f);
+            AddReward(-0.02f);
     }
 
     public void GetHit()
     {
         if (isSpawning) return;
-        AddReward(-25.0f);
+        AddReward(-1.0f);
         EndEpisode();
     }
    
@@ -215,10 +224,8 @@ public class SimplePlayerAgent : Agent
             }
             else
             {
-                float timeBonus = Mathf.Clamp01(1f - episodeTimer / maxEpisodeTime);
-                float distanceMultiplier = Mathf.Clamp(distance / 10f, 1.0f, 3.0f);
-                float finalReward = (50f * distanceMultiplier) + (10f * timeBonus);
-
+                float bonus = Mathf.Clamp(distance / 15f, 0f, 1f);
+                float finalReward = 2.0f + bonus;
                 AddReward(finalReward);
                 Debug.Log($"[{gameObject.name}] <color=green>HIT!</color> Dist: {distance:F1}m | Reward: {finalReward:F1}");
             }
@@ -229,7 +236,7 @@ public class SimplePlayerAgent : Agent
         {
             if (distance > 8f)
             {
-                AddReward(0.5f);
+                AddReward(0.4f);
                 Debug.Log("<color=yellow>NEAR MISS (Safe Dist)!</color>");
             }
         }
