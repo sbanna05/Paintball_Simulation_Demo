@@ -16,12 +16,17 @@ public class SimplePlayerAgent : Agent
     [Header("Spawn Settings")]
     [SerializeField] private Transform[] agentSpawnPoints;
 
-    [Header("Inference Settings")]
-    [SerializeField] private float lookSmoothing = 0.4f;
+    [Header("Training Settings")]
+    [SerializeField] private float lookSmoothing = 0.15f;
     [SerializeField] private float moveSmoothing = 0.1f;
+    [SerializeField] private bool alwaysSmooth = true;
 
     private Vector2 smoothLook;
     private Vector2 smoothMove;
+
+    // ÚJ: Velocity tracking
+    private Vector3 previousPosition;
+    private Vector3 currentVelocity;
 
     private StarterAssetsInputs inputs;
     private CharacterController characterController;
@@ -34,7 +39,10 @@ public class SimplePlayerAgent : Agent
     private float episodeTimer;
     private bool isSpawning;
     private string targetTag = "Player";
-    private bool hasSeenTarget = false;
+
+    private int shotsFired = 0;
+    private float lastShotTime = 0f;
+    private float shotCooldown = 0.3f;
 
     public override void Initialize()
     {
@@ -44,6 +52,8 @@ public class SimplePlayerAgent : Agent
         shooterController = GetComponent<ShooterController>();
         rigBuilder = GetComponent<RigBuilder>();
         tpc = GetComponent<ThirdPersonController>();
+
+        previousPosition = transform.position;
     }
 
     public override void OnEpisodeBegin()
@@ -51,6 +61,11 @@ public class SimplePlayerAgent : Agent
         episodeTimer = 0f;
         smoothLook = Vector2.zero;
         smoothMove = Vector2.zero;
+        shotsFired = 0;
+        lastShotTime = 0f;
+        currentVelocity = Vector3.zero;
+        previousPosition = transform.position;
+
         StartCoroutine(SafeSpawn());
     }
 
@@ -94,40 +109,62 @@ public class SimplePlayerAgent : Agent
         if (rigBuilder) rigBuilder.enabled = true;
         if (tpc) tpc.enabled = true;
 
+        previousPosition = transform.position;
         isSpawning = false;
     }
 
     public override void CollectObservations(VectorSensor sensor)
     {
+        // === SAJÁT ÁLLAPOT (9) ===
+
         sensor.AddObservation(transform.forward);
+
+        // 2. Normalizált velocity (3)
+        currentVelocity = (transform.position - previousPosition) / Time.fixedDeltaTime;
+        previousPosition = transform.position;
+        sensor.AddObservation(currentVelocity / 10f); // Normalizálva max ~10 m/s-re
+
+        // 3. Jelenlegi aim állapot (1)
+        sensor.AddObservation(inputs != null && inputs.aim ? 1f : 0f);
+
+        // 4. Cooldown állapot (1)
+        float cooldownProgress = Mathf.Clamp01((Time.time - lastShotTime) / shotCooldown);
+        sensor.AddObservation(cooldownProgress);
+
+        // 5. Aimrig weight (1)
+        sensor.AddObservation(shooterController.aimRig != null ? shooterController.aimRig.weight : 0f);
 
         if (opponentAgent != null)
         {
-            Vector3 toTarget = opponentAgent.transform.position - transform.position;
-            sensor.AddObservation(toTarget.normalized); // 3
-            sensor.AddObservation(toTarget.magnitude / 50f); // 1
+            Vector3 toEnemy = opponentAgent.transform.position - transform.position;
+            float distance = toEnemy.magnitude;
 
-            float dot = Vector3.Dot(transform.forward, toTarget.normalized);
-            sensor.AddObservation(dot); // 1
+            Vector3 localEnemyDir = transform.InverseTransformDirection(toEnemy.normalized);
+            sensor.AddObservation(localEnemyDir);
 
-            Vector3 localEnemyDir = transform.InverseTransformDirection(toTarget.normalized);
-            sensor.AddObservation(localEnemyDir); //3
+            sensor.AddObservation(Mathf.Clamp(distance / 50f, 0f, 1f)); // Max 30m
+
+            Vector3 enemyForward = transform.InverseTransformDirection(opponentAgent.transform.forward);
+            sensor.AddObservation(enemyForward);
+
+            if (shooterController != null && shooterController.gunBarrel != null)
+            {
+                Vector3 gunDir = shooterController.gunBarrel.forward;
+                float gunAlignment = Vector3.Dot(gunDir, toEnemy.normalized);
+                sensor.AddObservation(gunAlignment);
+            }
+            else
+            {
+                sensor.AddObservation(0f);
+            }
         }
         else
         {
-            sensor.AddObservation(Vector3.zero);
-            sensor.AddObservation(0f);
-            sensor.AddObservation(0f);
-            sensor.AddObservation(Vector3.zero);
+            sensor.AddObservation(Vector3.zero);     // localEnemyDir
+            sensor.AddObservation(0f);               // distance
+            sensor.AddObservation(Vector3.zero);     // enemyForward
+            sensor.AddObservation(0f);               // gunAlignment
         }
-
-        if (aimTarget != null)
-        {
-            sensor.AddObservation(aimTarget.localPosition.y / 3f); //1
-        }
-        
-         Vector3 gunToEnemy = opponentAgent.transform.position - shooterController.gunBarrel.position;
-         sensor.AddObservation(gunToEnemy.normalized.y); //1
     }
 
     public override void OnActionReceived(ActionBuffers actions)
@@ -146,7 +183,7 @@ public class SimplePlayerAgent : Agent
         bool shouldJump = actions.DiscreteActions[2] == 1;
         bool shouldSprint = actions.DiscreteActions[3] == 1;
 
-        if (IsHeuristic())
+        if (alwaysSmooth || IsHeuristic())
         {
             smoothMove = Vector2.Lerp(smoothMove, new Vector2(rawMoveX, rawMoveZ), 1f - moveSmoothing);
             smoothLook = Vector2.Lerp(smoothLook, new Vector2(rawLookX, rawLookY), 1f - lookSmoothing);
@@ -160,9 +197,9 @@ public class SimplePlayerAgent : Agent
         if (inputs != null)
         {
             inputs.move = smoothMove;
-            inputs.look = smoothLook; 
+            inputs.look = smoothLook;
             inputs.aim = shouldAim;
-            inputs.shoot = shouldShoot;
+            inputs.shoot = shouldShoot && (Time.time >= lastShotTime + shotCooldown);
             inputs.jump = false;
             inputs.sprint = shouldSprint;
         }
@@ -174,7 +211,7 @@ public class SimplePlayerAgent : Agent
             aimTarget.localPosition = lp;
         }
 
-        AddReward(-0.00005f);
+        AddReward(-0.0002f);
 
         if (opponentAgent != null)
         {
@@ -182,45 +219,69 @@ public class SimplePlayerAgent : Agent
             float distance = toEnemy.magnitude;
             Vector3 toEnemyDir = toEnemy.normalized;
 
-            if (Time.frameCount % 5 == 0)
+            float distanceReward = 0f;
+            if (distance < 5f)
             {
-                if (distance < 8f) AddReward(-0.002f);
-                else if (distance >= 10f && distance <= 25f) AddReward(0.002f);
+                distanceReward = -0.003f;
             }
+            else if (distance >= 8f && distance <= 25f)
+            {
+                float optimalness = 1f - Mathf.Abs(distance - 15.0f) / 7.5f;
+                distanceReward = 0.001f * optimalness;
+            }
+
+            AddReward(distanceReward);
 
             float bodyDot = Vector3.Dot(transform.forward, toEnemyDir);
-            if (bodyDot > 0.5f)
+            if (bodyDot > 0.3f)
             {
-                AddReward(0.001f);
+                AddReward((bodyDot - 0.3f) * 0.002f); // 0 -> 0.0014 ha perfect
             }
 
-            Vector3 gunDir = shooterController.gunBarrel.forward;
-            float aimDot = Vector3.Dot(gunDir, toEnemyDir);
-
-            if (aimDot > 0.7f)
+            if (shooterController != null && shooterController.gunBarrel != null)
             {
-                AddReward((aimDot - 0.7f) * 0.1f);
+                Vector3 gunDir = shooterController.gunBarrel.forward;
+                float aimDot = Vector3.Dot(gunDir, toEnemyDir);
+
+                // Progresszív reward
+                if (aimDot > 0.5f)
+                {
+                    float alignmentReward = (aimDot - 0.5f) * 0.01f; // 0 -> 0.005 ha perfect
+                    AddReward(alignmentReward);
+                }
+
+                // Extra bonus ha nagyon pontos ÉS aim-el
+                if (inputs.aim && aimDot > 0.9f)
+                {
+                    AddReward(0.002f);
+                }
             }
         }
 
         if (episodeTimer >= maxEpisodeTime)
         {
-            AddReward(-2.0f);
-            Debug.Log($"[{gameObject.name}] TIMEOUT");
+            AddReward(-5.0f);
+            Debug.Log($"[{gameObject.name}] TIMEOUT after {shotsFired} shots");
             EndEpisode();
         }
     }
 
     public void OnShotFired()
     {
+        shotsFired++;
+        lastShotTime = Time.time;
+
         if (!IsEnemyVisible())
-            AddReward(-0.02f);
+        {
+            AddReward(-0.1f);
+        }
     }
 
     public void GetHit()
     {
         if (isSpawning) return;
-        AddReward(-2.0f);
+        AddReward(-5.0f);
+        Debug.Log($"[{gameObject.name}] GOT HIT after {shotsFired} shots");
         EndEpisode();
     }
 
@@ -234,24 +295,26 @@ public class SimplePlayerAgent : Agent
 
         if (tag == targetTag)
         {
-            if (distance < 8.0f)
+            float baseReward = 5.0f;
+
+            if (distance < 5.0f)
             {
-                Debug.Log($"[{gameObject.name}] <color=red>TOO CLOSE!</color> Dist: {distance:F1}m");
-                AddReward(1.0f);
+                AddReward(baseReward * 0.5f);
+                Debug.Log($"[{gameObject.name}] <color=red>TOO CLOSE!</color> Dist: {distance:F1}m | Reward: {baseReward * 0.5f:F1}");
             }
-            else
+            else if (distance >= 5f && distance <= 25f)
             {
-                float bonus = Mathf.Clamp(distance / 15f, 0f, 1f);
-                float finalReward = 8.0f + bonus;
+                float distanceBonus = Mathf.Clamp((distance - 5f) / 20f, 0.2f, 1f);
+                float finalReward = baseReward * (1f + distanceBonus);
                 AddReward(finalReward);
-                Debug.Log($"[{gameObject.name}] <color=green>HIT!</color> Dist: {distance:F1}m | Reward: {finalReward:F1}");
+                Debug.Log($"<color=green>[{gameObject.name}] HIT!</color> Dist: {distance:F1}m | Reward: {finalReward:F1}");
             }
 
             EndEpisode();
         }
         else if (tag == "NearMiss")
         {
-            if (distance > 8f)
+            if (distance > 8f && distance < 25f)
             {
                 AddReward(0.2f);
                 Debug.Log("<color=yellow>NEAR MISS (Safe Dist)!</color>");
@@ -259,7 +322,7 @@ public class SimplePlayerAgent : Agent
         }
         else
         {
-            AddReward(-0.01f);
+            AddReward(-0.02f);
         }
     }
 

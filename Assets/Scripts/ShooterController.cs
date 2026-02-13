@@ -7,7 +7,7 @@ public class ShooterController : MonoBehaviour
 {
     [Header("Rigging & Camera")]
     [SerializeField] private CinemachineVirtualCamera aimCamera;
-    [SerializeField] private Rig aimRig;
+    [SerializeField] public Rig aimRig;
     [SerializeField] private Transform aimTarget;
 
     [Header("Shooting")]
