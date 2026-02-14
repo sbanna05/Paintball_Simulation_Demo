@@ -211,7 +211,7 @@ public class SimplePlayerAgent : Agent
             aimTarget.localPosition = lp;
         }
 
-        AddReward(-0.0001f); // CSÖKKENTVE -0.0002-ről
+        AddReward(-0.0002f);
 
         if (opponentAgent != null)
         {
@@ -235,7 +235,7 @@ public class SimplePlayerAgent : Agent
             float bodyDot = Vector3.Dot(transform.forward, toEnemyDir);
             if (bodyDot > 0.3f)
             {
-                AddReward((bodyDot - 0.3f) * 0.004f); // DUPLÁZVA 0.002-ről
+                AddReward((bodyDot - 0.3f) * 0.003f);
             }
 
             if (shooterController != null && shooterController.gunBarrel != null)
@@ -300,12 +300,12 @@ public class SimplePlayerAgent : Agent
 
             if (distance < 5.0f)
             {
-                AddReward(baseReward * 0.4f); // 4.0
-                Debug.Log($"[{gameObject.name}] <color=red>TOO CLOSE!</color> Dist: {distance:F1}m | Reward: {baseReward * 0.4f:F1}");
+                AddReward(baseReward * 0.2f); // 4.0
+                Debug.Log($"[{gameObject.name}] <color=red>TOO CLOSE!</color> Dist: {distance:F1}m | Reward: {baseReward * 0.2f:F1}");
             }
-            else if (distance >= 5f && distance <= 25f)
+            else if (distance >= 5f && distance <= 30f)
             {
-                float distanceBonus = Mathf.Clamp((distance - 5f) / 18f, 0.2f, 1f);
+                float distanceBonus = Mathf.Clamp((distance - 5f) / 15f, 0.2f, 1f);
                 float finalReward = baseReward * (1f + distanceBonus); // 10-20
                 AddReward(finalReward);
                 Debug.Log($"<color=green>[{gameObject.name}] HIT!</color> Dist: {distance:F1}m | Reward: {finalReward:F1}");
@@ -320,15 +320,15 @@ public class SimplePlayerAgent : Agent
         }
         else if (tag == "NearMiss")
         {
-            if (distance > 8f && distance < 25f)
+            if (distance > 8f && distance < 30f)
             {
-                AddReward(0.3f); // NÖVELVE 0.2-ről
+                AddReward(0.2f);
                 Debug.Log("<color=yellow>NEAR MISS (Safe Dist)!</color>");
             }
         }
         else
         {
-            AddReward(-0.01f); // CSÖKKENTVE -0.02-ről
+            AddReward(-0.01f);
         }
     }
 
