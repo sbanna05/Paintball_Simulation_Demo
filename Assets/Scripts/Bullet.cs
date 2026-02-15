@@ -8,6 +8,7 @@ public class Bullet : MonoBehaviour
 
     private Rigidbody bulletRigidBody;
     private float bulletSpeed = 60f;
+    private float damage = 50f;
     private SimplePlayerAgent ownerAgent;
 
     private void Awake()
@@ -38,22 +39,19 @@ public class Bullet : MonoBehaviour
 
         if (other.transform.IsChildOf(ownerAgent.transform)) return;
 
-        //Debug.Log("Ütközés: " + other.name + " Layer: "  + LayerMask.LayerToName(other.gameObject.layer));
-        //ownerAgent.RegisterHit(other.tag, other.gameObject);
-
         SimplePlayerAgent victim = other.GetComponentInParent<SimplePlayerAgent>();
         Vector3 direction = bulletRigidBody.velocity.normalized;
 
-        if(other.CompareTag("NearMiss"))
+        if (other.CompareTag("NearMiss"))
         {
             ownerAgent.RegisterHit("NearMiss", other.gameObject);
+            if (victim != null) victim.OnNearMissDetected();
             return;
         }
         if (other.CompareTag("Player"))
         {
             ownerAgent.RegisterHit("Player", other.gameObject);
-            //Player victim = other.GetComponent<Player>();
-            if (victim != null) victim.GetHit();
+            if (victim != null) victim.TakeDamage(damage, ownerAgent);
 
             Destroy(gameObject);
         }
@@ -61,7 +59,7 @@ public class Bullet : MonoBehaviour
         {
             ownerAgent.RegisterHit(other.tag, other.gameObject);
             Destroy(gameObject);
-        }
+        }    
 
         // Spawn visual effect
         RaycastHit hit;

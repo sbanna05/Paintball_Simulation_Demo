@@ -9,6 +9,8 @@ using UnityEngine.Animations.Rigging;
 
 public class SimplePlayerAgent : Agent
 {
+    public enum AgentMode { Offensive, Defensive }
+
     [Header("References")]
     [SerializeField] private SimplePlayerAgent opponentAgent;
     [SerializeField] private Transform aimTarget;
@@ -16,17 +18,15 @@ public class SimplePlayerAgent : Agent
     [Header("Spawn Settings")]
     [SerializeField] private Transform[] agentSpawnPoints;
 
+    [Header("Combat Settings")]
+    [SerializeField] private float maxHealth = 100f;
+    public float CurrentHealth { get; private set; }
+
     [Header("Training Settings")]
     [SerializeField] private float lookSmoothing = 0.15f;
     [SerializeField] private float moveSmoothing = 0.1f;
 
-    private Vector2 smoothLook;
-    private Vector2 smoothMove;
-
-    // ÚJ: Velocity tracking
-    private Vector3 previousPosition;
-    private Vector3 currentVelocity;
-
+    // Components
     private StarterAssetsInputs inputs;
     private CharacterController characterController;
     private RayPerceptionSensorComponent3D raySensor;
@@ -34,14 +34,23 @@ public class SimplePlayerAgent : Agent
     private RigBuilder rigBuilder;
     private ThirdPersonController tpc;
 
-    private float maxEpisodeTime = 100f;
+    // State
+    private float maxEpisodeTime = 120f;
     private float episodeTimer;
     private bool isSpawning;
     private string targetTag = "Player";
+    private AgentMode currentMode = AgentMode.Offensive;
 
+    private bool isUnderFire = false;
+    private float underFireTimer = 0f;
+    private int nearMissCount = 0;     
     private int shotsFired = 0;
-    private float lastShotTime = 0f;
-    private float shotCooldown = 0.3f;
+    private Vector2 smoothLook;
+    private Vector2 smoothMove;
+
+    // Anti-Camp
+    private Vector3 lastPosition;
+    private float campTimer;
 
     public override void Initialize()
     {
@@ -52,18 +61,23 @@ public class SimplePlayerAgent : Agent
         rigBuilder = GetComponent<RigBuilder>();
         tpc = GetComponent<ThirdPersonController>();
 
-        previousPosition = transform.position;
+        CurrentHealth = maxHealth;
     }
 
     public override void OnEpisodeBegin()
     {
         episodeTimer = 0f;
-        smoothLook = Vector2.zero;
-        smoothMove = Vector2.zero;
+        CurrentHealth = maxHealth;
+        currentMode = AgentMode.Offensive;
+
+        // Reset Suppression
+        isUnderFire = false;
+        underFireTimer = 0f;
+        nearMissCount = 0;
         shotsFired = 0;
-        lastShotTime = 0f;
-        currentVelocity = Vector3.zero;
-        previousPosition = transform.position;
+
+        campTimer = 0f;
+        lastPosition = transform.position;
 
         StartCoroutine(SafeSpawn());
     }
@@ -95,82 +109,79 @@ public class SimplePlayerAgent : Agent
             transform.SetPositionAndRotation(agentSpawnPoints[idx].position, agentSpawnPoints[idx].rotation);
         }
 
-        if (aimTarget)
-        {
-            aimTarget.localPosition = new Vector3(0, 1.5f, 10f);
-        }
+        if (aimTarget) aimTarget.localPosition = new Vector3(0, 1.5f, 10f);
 
         Physics.SyncTransforms();
-        yield return new WaitForSeconds(0.15f);
+        yield return new WaitForSeconds(0.1f);
 
         if (characterController) characterController.enabled = true;
         if (shooterController) shooterController.enabled = true;
         if (rigBuilder) rigBuilder.enabled = true;
         if (tpc) tpc.enabled = true;
 
-        previousPosition = transform.position;
+        lastPosition = transform.position;
         isSpawning = false;
     }
 
     public override void CollectObservations(VectorSensor sensor)
     {
-        // === SAJÁT ÁLLAPOT (9) ===
+        sensor.AddObservation(CurrentHealth / maxHealth);
+        sensor.AddObservation(shooterController.CooldownProgress());
+        sensor.AddObservation((float)currentMode); // 0 = Offensive, 1 = Defensive
 
+        // 2. Saját irány
         sensor.AddObservation(transform.forward);
-
-        // 2. Normalizált velocity (3)
-        currentVelocity = (transform.position - previousPosition) / Time.fixedDeltaTime;
-        previousPosition = transform.position;
-        sensor.AddObservation(currentVelocity / 10f); // Normalizálva max ~10 m/s-re
-
-        // 3. Jelenlegi aim állapot (1)
-        sensor.AddObservation(inputs != null && inputs.aim ? 1f : 0f);
-
-        // 4. Cooldown állapot (1)
-        float cooldownProgress = Mathf.Clamp01((Time.time - lastShotTime) / shotCooldown);
-        sensor.AddObservation(cooldownProgress);
-
-        // 5. Aimrig weight (1)
-        sensor.AddObservation(shooterController.aimRig != null ? shooterController.aimRig.weight : 0f);
 
         if (opponentAgent != null)
         {
             Vector3 toEnemy = opponentAgent.transform.position - transform.position;
             float distance = toEnemy.magnitude;
 
-            Vector3 localEnemyDir = transform.InverseTransformDirection(toEnemy.normalized);
-            sensor.AddObservation(localEnemyDir);
-
+            // 3. Ellenség infók
+            sensor.AddObservation(toEnemy.normalized);
             sensor.AddObservation(Mathf.Clamp(distance / 50f, 0f, 1f));
+            sensor.AddObservation(opponentAgent.transform.forward);
 
-            Vector3 enemyForward = transform.InverseTransformDirection(opponentAgent.transform.forward);
-            sensor.AddObservation(enemyForward);
+            // 4. Látom-e?
+            bool canSee = CheckLineOfSight();
+            sensor.AddObservation(canSee ? 1f : 0f);
 
-            if (shooterController != null && shooterController.gunBarrel != null)
+            // 5. Célzás
+            if (shooterController.gunBarrel != null)
             {
-                Vector3 gunDir = shooterController.gunBarrel.forward;
-                float gunAlignment = Vector3.Dot(gunDir, toEnemy.normalized);
-                sensor.AddObservation(gunAlignment);
+                float dot = Vector3.Dot(shooterController.gunBarrel.forward, toEnemy.normalized);
+                sensor.AddObservation(dot);
             }
-            else
-            {
-                sensor.AddObservation(0f);
-            }
+            else { sensor.AddObservation(0f); }
+
+            // 6. Ellenség HP
+            sensor.AddObservation(opponentAgent.CurrentHealth / maxHealth);
+
+            float suppressionLevel = isUnderFire ? Mathf.Clamp01(nearMissCount / 5f) + 0.1f : 0f;
+            sensor.AddObservation(suppressionLevel);
         }
         else
         {
-            sensor.AddObservation(Vector3.zero);     // localEnemyDir
-            sensor.AddObservation(0f);               // distance
-            sensor.AddObservation(Vector3.zero);     // enemyForward
-            sensor.AddObservation(0f);               // gunAlignment
+            sensor.AddObservation(new float[10]);
         }
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
         if (isSpawning) return;
-
         episodeTimer += Time.fixedDeltaTime;
+
+        // --- SUPPRESSION LOGIKA ---
+        if (underFireTimer > 0)
+        {
+            underFireTimer -= Time.fixedDeltaTime;
+            if (underFireTimer <= 0)
+            {
+                isUnderFire = false;
+                nearMissCount = 0;
+            }
+        }
+        UpdateAgentMode();
 
         float rawMoveX = actions.ContinuousActions[0];
         float rawMoveZ = actions.ContinuousActions[1];
@@ -198,10 +209,16 @@ public class SimplePlayerAgent : Agent
             inputs.move = smoothMove;
             inputs.look = smoothLook;
             inputs.aim = shouldAim;
-            inputs.shoot = shouldShoot && (Time.time >= lastShotTime + shotCooldown);
+
+            bool canShoot = shooterController.IsCooldownReady();
+            if (shouldShoot && canShoot)
+                inputs.shoot = true;
+            else
+                inputs.shoot = false;
+
             inputs.jump = false;
             inputs.sprint = shouldSprint;
-        }
+        }               
 
         if (aimTarget != null && !IsHeuristic())
         {
@@ -210,78 +227,77 @@ public class SimplePlayerAgent : Agent
             aimTarget.localPosition = lp;
         }
 
-        AddReward(-0.00025f);
+        AddReward(-0.0005f);
+
+        // Anti-Camp (Csak ha OFFENSIVE módban van!)
+        // Ha védekezik (mert lőnek rá), akkor NEM büntetjük az egyhelyben állást (fedezék)!
+        if (currentMode == AgentMode.Offensive)
+        {
+            if (Vector3.Distance(transform.position, lastPosition) < 0.5f)
+            {
+                campTimer += Time.fixedDeltaTime;
+                if (campTimer > 3.0f) AddReward(-0.005f);
+            }
+            else
+            {
+                campTimer = 0f;
+                lastPosition = transform.position;
+            }
+        }
 
         if (opponentAgent != null)
         {
-            Vector3 toEnemy = opponentAgent.transform.position - transform.position;
-            float distance = toEnemy.magnitude;
-            Vector3 toEnemyDir = toEnemy.normalized;
-
-            // TÁVOLSÁG REWARD
-            /*float distanceReward = 0f;
-            if (distance < 5f)
+            if (CheckLineOfSight())
             {
-                distanceReward = -0.005f;
-            }
-            else if (distance >= 8f && distance <= 25f)
-            {
-                float optimalness = 1f - Mathf.Abs(distance - 15.0f) / 7.5f;
-                distanceReward = 0.001f * optimalness;
-            }
-            AddReward(distanceReward);*/
-
-            float bodyDot = Vector3.Dot(transform.forward, toEnemyDir);
-            if (bodyDot > 0.6f)
-            {
-                AddReward((bodyDot - 0.6f) * 0.002f);
-            }
-
-            if (shooterController != null && shooterController.gunBarrel != null)
-            {
-                Vector3 gunDir = shooterController.gunBarrel.forward;
-                float aimDot = Vector3.Dot(gunDir, toEnemyDir);
-
-                if (aimDot > 0.8f && inputs.aim)
-                {
-                    float alignmentReward = (aimDot - 0.8f) * 0.01f;
-                    AddReward(alignmentReward);
-                }
+                Vector3 toEnemy = (opponentAgent.transform.position - transform.position).normalized;
+                float dot = Vector3.Dot(transform.forward, toEnemy);
+                if (dot > 0.7f) AddReward(0.001f);
             }
         }
 
         if (episodeTimer >= maxEpisodeTime)
         {
-            AddReward(-6f);
+            AddReward(-2f);
             Debug.Log($"[{gameObject.name}] TIMEOUT after {shotsFired} shots");
             EndEpisode();
+        }
+    }
+
+    private void UpdateAgentMode()
+    {
+        bool lowHealth = CurrentHealth < maxHealth * 0.4f;
+
+        //Tűz alatt van -> Védekezés
+        bool suppressed = isUnderFire && nearMissCount > 3;
+
+        if (lowHealth || suppressed)
+        {
+            if (currentMode != AgentMode.Defensive)
+            {
+                currentMode = AgentMode.Defensive;
+                // AddReward(0.05f); // Dicséret a váltásért (opcionális)
+            }
+        }
+        else
+        {
+            currentMode = AgentMode.Offensive;
+        }
+
+        // Defensive logika: Jutalmazzuk, ha elbújik!
+        if (currentMode == AgentMode.Defensive)
+        {
+            if (!CheckLineOfSight() && isUnderFire)
+            {
+                float safetyReward = 0.002f;
+                AddReward(safetyReward);
+            }
         }
     }
 
     public void OnShotFired()
     {
         shotsFired++;
-        if (Time.time < lastShotTime + shotCooldown)
-        {
-            AddReward(-0.02f);
-        }
-
-        if (!IsEnemyVisible())
-        {
-            AddReward(-0.05f);
-        }
-
-        lastShotTime = Time.time;        
-    }
-
-    public void GetHit()
-    {
-        if (isSpawning) return;
-
-        AddReward(-6f);
-
-        Debug.Log($"[{gameObject.name}] GOT HIT after {shotsFired} shots");
-        EndEpisode();
+        AddReward(-0.01f);
     }
 
     public void RegisterHit(string tag, GameObject hitObject)
@@ -294,50 +310,74 @@ public class SimplePlayerAgent : Agent
 
         if (tag == targetTag)
         {
-            float baseReward = 8.0f;
+            float baseReward = 6.0f;
 
-            if (distance < 5.0f)
-            {
-                AddReward(baseReward * 0.2f); // 4.0
-                Debug.Log($"[{gameObject.name}] <color=red>TOO CLOSE!</color> Dist: {distance:F1}m | Reward: {baseReward * 0.2f:F1}");
-            }
-            else if (distance >= 5f && distance <= 30f)
-            {
-                float distanceBonus = Mathf.Clamp((distance - 5f) / 15f, 0.5f, 1.5f);
-                float finalReward = baseReward * (1f + distanceBonus);
-                AddReward(finalReward);
-                Debug.Log($"<color=green>[{gameObject.name}] HIT!</color> Dist: {distance:F1}m | Reward: {finalReward:F1}");
-            }
-
-            EndEpisode();
+            float distanceBonus = Mathf.Clamp((distance - 5f) / 15f, 0.5f, 1.5f);
+            float finalReward = baseReward * (1f + distanceBonus);
+            AddReward(finalReward);
+            Debug.Log($"<color=green>[{gameObject.name}] HIT!</color> Dist: {distance:F1}m | Reward: {finalReward:F1}");
         }
-        else if (tag == "NearMiss")
+        else if(tag == "NearMiss")
         {
-            if (distance > 8f && distance < 30f)
-            {
-                AddReward(0.08f);
-               // Debug.Log("<color=yellow>NEAR MISS (Safe Dist)!</color>");
-            }
-        }
+            AddReward(0.08f);
+            // Debug.Log("<color=yellow>NEAR MISS (Safe Dist)!</color>");
+        }    
         else
         {
             AddReward(-0.01f);
         }
     }
 
-    private bool IsEnemyVisible()
+    public void OnNearMissDetected()
     {
-        if (raySensor == null) return false;
-        var rayOutputs = RayPerceptionSensor.Perceive(raySensor.GetRayPerceptionInput()).RayOutputs;
-        foreach (var ray in rayOutputs)
+        isUnderFire = true;
+        underFireTimer = 2.0f; 
+        nearMissCount++;
+
+        AddReward(-0.05f);
+    }
+
+    // Bullet hívja, ha ENGEM találtak el
+    public void TakeDamage(float damage, SimplePlayerAgent attacker)
+    {
+        if (isSpawning) return;
+
+        CurrentHealth -= damage;
+        AddReward(-0.5f);
+
+        isUnderFire = true;
+        underFireTimer = 3.0f;
+
+        if (CurrentHealth <= 0)
         {
-            if (ray.HitGameObject != null)
-            {
-                if (ray.HitGameObject.CompareTag("Player") || ray.HitGameObject.CompareTag("NearMiss"))
-                {
-                    return true;
-                }
-            }
+            Die(attacker);
+        }
+    }
+
+    private void Die(SimplePlayerAgent killer)
+    {
+        AddReward(-2.0f);
+        Debug.Log($"[{gameObject.name}] DIED.");
+
+        if (killer != null)
+        {
+            killer.AddReward(2.0f);
+            killer.EndEpisode();
+        }
+
+        EndEpisode();
+    }
+
+    private bool CheckLineOfSight()
+    {
+        if (opponentAgent == null) return false;
+        Vector3 origin = transform.position + Vector3.up * 1.5f;
+        Vector3 target = opponentAgent.transform.position + Vector3.up * 1.5f;
+        Vector3 dir = target - origin;
+
+        if (Physics.Raycast(origin, dir, out RaycastHit hit, 60f))
+        {
+            if (hit.transform.root == opponentAgent.transform.root) return true;
         }
         return false;
     }
