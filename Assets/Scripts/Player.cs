@@ -11,9 +11,9 @@ public class Player : Agent
 {
     [Header("References")]
     [SerializeField] private Transform aimTarget;
-    [SerializeField] private Transform enemyTarget; // A Dummy
+    [SerializeField] private Transform enemyTarget;
     [SerializeField] private Transform[] agentSpawnPoints;
-    [SerializeField] private Transform[] enemySpawnPoints; // A Dummy spawn pontjai
+    [SerializeField] private Transform[] enemySpawnPoints;
 
     private StarterAssetsInputs inputs;
     private CharacterController characterController;
@@ -22,11 +22,13 @@ public class Player : Agent
     private RayPerceptionSensorComponent3D raySensor;
     private ThirdPersonController tpc;
 
-    private float maxEpisodeTime = 100f; // Rövidített idő
+    private Vector3 previousPosition;
+    private Vector3 currentVelocity;
+
+    private float maxEpisodeTime = 100f;
     private float episodeTimer;
     private bool isSpawning;
-    private string targetTag = "Enemy";
-    private bool hasSeenTarget = false;
+    private string targetTag = "Player";
     private float distance;
 
     public override void Initialize()
@@ -42,7 +44,6 @@ public class Player : Agent
     public override void OnEpisodeBegin()
     {
         episodeTimer = 0f;
-        hasSeenTarget = false;
         StartCoroutine(SafeSpawnWithDummy());
     }
 
@@ -57,7 +58,8 @@ public class Player : Agent
         if (characterController) characterController.enabled = false;
 
         // 2. Input reset
-        if (inputs) {
+        if (inputs)
+        {
             inputs.move = Vector2.zero;
             inputs.look = Vector2.zero;
             inputs.aim = false;
@@ -105,28 +107,42 @@ public class Player : Agent
     {
         sensor.AddObservation(transform.forward);
 
+        currentVelocity = (transform.position - previousPosition) / Time.fixedDeltaTime;
+        previousPosition = transform.position;
+        sensor.AddObservation(currentVelocity / 10f); // Normalizálva max ~10 m/s-re
+
+        sensor.AddObservation(inputs != null && inputs.aim ? 1f : 0f);
+
+        sensor.AddObservation(shooterController.CooldownProgress());
+
+        sensor.AddObservation(shooterController.aimRig != null ? shooterController.aimRig.weight : 0f);
+
         if (enemyTarget != null)
         {
-            Vector3 toTarget = enemyTarget.position - transform.position;
-            sensor.AddObservation(toTarget.normalized);
-            sensor.AddObservation(toTarget.magnitude / 50f);
+            Vector3 toEnemy = enemyTarget.transform.position - transform.position;
+            distance = toEnemy.magnitude;
 
-            float dot = Vector3.Dot(transform.forward, toTarget.normalized);
-            sensor.AddObservation(dot);
+            Vector3 localEnemyDir = transform.InverseTransformDirection(toEnemy.normalized);
+            sensor.AddObservation(localEnemyDir);
+
+            sensor.AddObservation(Mathf.Clamp(distance / 50f, 0f, 1f));
+
+            Vector3 enemyForward = transform.InverseTransformDirection(enemyTarget.transform.forward);
+            sensor.AddObservation(enemyForward);
+
+            if (shooterController != null && shooterController.gunBarrel != null)
+            {
+                Vector3 gunDir = shooterController.gunBarrel.forward;
+                float gunAlignment = Vector3.Dot(gunDir, toEnemy.normalized);
+                sensor.AddObservation(gunAlignment);
+            }
         }
-        else { sensor.AddObservation(Vector3.zero); sensor.AddObservation(0f); sensor.AddObservation(0f); }
-
-        if (aimTarget != null) sensor.AddObservation(aimTarget.localPosition.y / 3f);
-        else sensor.AddObservation(0f);
-
-        Vector3 gunToEnemy = enemyTarget.position - shooterController.gunBarrel.position;
-        sensor.AddObservation(gunToEnemy.normalized.y);
-
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
         if (isSpawning) return;
+
         episodeTimer += Time.fixedDeltaTime;
 
         float moveX = actions.ContinuousActions[0];
@@ -143,11 +159,10 @@ public class Player : Agent
         {
             inputs.move = new Vector2(moveX, moveZ);
 
-            if (!IsHeuristic())
+            if (IsHeuristic())
             {
                 transform.Rotate(Vector3.up, lookX * 200f * Time.deltaTime);
-                //inputs.look = Vector2.zero;
-                inputs.look = new Vector2(lookX, lookY);
+                inputs.look = Vector2.zero;
             }
             else
             {
@@ -158,9 +173,8 @@ public class Player : Agent
             inputs.shoot = shouldShoot;
             inputs.jump = false;
             inputs.sprint = shouldSprint;
-
         }
-
+        
         AddReward(-0.0002f);
 
         if (aimTarget != null && !IsHeuristic())
@@ -173,83 +187,40 @@ public class Player : Agent
 
         if (enemyTarget != null)
         {
-            Vector3 toEnemy = enemyTarget.position - transform.position;
-            distance = toEnemy.magnitude;
+            float distance = Vector3.Distance(transform.position, enemyTarget.position);
+            Vector3 toEnemy = (enemyTarget.position - transform.position).normalized;
+            float dot = Vector3.Dot(transform.forward, toEnemy);
 
-            Vector3 aimDir = shooterController.gunBarrel.forward;
-            float aimDot = Vector3.Dot(aimDir, toEnemy.normalized);
+            if (dot > 0.7f)
+                AddReward(0.003f * dot);
 
-            if (distance < 8f)
-            {
-                /*float proximityPenalty = Mathf.Pow(10f - distance, 2) * -0.02f;
-                AddReward(proximityPenalty - 0.02f);*/
-                AddReward(-0.005f);
-            }
-            else if (distance > 10f && distance < 20f)
-            {
+            if (distance < 5f)
+                AddReward(-0.01f);
+
+            if (distance > 8f && distance < 18f)
                 AddReward(0.002f);
-            }
+        }
 
-            bool seen = IsEnemyVisible();
-
-            if (seen)
-            {
-                AddReward(0.0005f);
-
-                if (shouldAim && shouldShoot && aimDot > 0.85)
-                {
-                    AddReward(0.002f * aimDot);
-                }
-                if (!hasSeenTarget)
-                {
-                    hasSeenTarget = true;
-                    AddReward(2f);
-                    Debug.Log("<color=cyan>TARGET ACQUIRED!</color>");
-                }
-            }
-
-             if (episodeTimer >= maxEpisodeTime)
-            {
-                AddReward(-20.0f);
-                Debug.Log("<color=red>timeout!</color>");
-                EndEpisode();
-            }
+        if (episodeTimer >= maxEpisodeTime)
+        {
+            AddReward(-5f);
+            Debug.Log("<color=red>timeout!</color>");
+            EndEpisode();
         }
     }
 
     public void OnShotFired()
     {
-        if (!IsEnemyVisible())
-            AddReward(-0.01f);
-        else
-            AddReward(-0.002f);
+        AddReward(-0.002f);
     }
 
 
     public void GetHit()
     {
         if (isSpawning) return;
-        AddReward(-25.0f);
-        Debug.Log(gameObject.name + ": <color=red>ELTALÁLTAK</color>");
+
+        AddReward(-25f);
         EndEpisode();
-    }
-
-    private bool IsEnemyVisible()
-    {
-        if (raySensor == null) return false;
-
-        var rayOutputs = RayPerceptionSensor.Perceive(raySensor.GetRayPerceptionInput()).RayOutputs;
-        foreach (var ray in rayOutputs)
-        {
-            if (ray.HitGameObject != null)
-            {
-                if (ray.HitGameObject.CompareTag(targetTag) || ray.HitGameObject.CompareTag("NearMiss"))
-                {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     public void RegisterHit(string tag, GameObject hitObject)
@@ -258,34 +229,16 @@ public class Player : Agent
 
         if (tag == targetTag)
         {
-            float timeBonus = Mathf.Clamp01(1f - episodeTimer / maxEpisodeTime);
-            float distanceBonus = Mathf.Clamp(Vector3.Distance(transform.position, enemyTarget.position) / 15f, 0.5f, 2.0f);
-
-            float finalReward = 60.0f * distanceBonus + 10f * timeBonus;
-
-            if (distance < 8f)
-            {
-                AddReward(-5f);
-                Debug.Log($"<color=red>TOO CLOSE! {distance}</color>");
-            }
-            else
-            {
-                AddReward(finalReward);
-                Debug.Log($"<color=green>DIRECT HIT! Dist Mult: {distanceBonus}  Distance: {distance} reward: {finalReward}</color>");
-            }
-                EndEpisode();
+            AddReward(30f);
+            EndEpisode();
         }
         else if (tag == "NearMiss")
         {
-            if (hitObject.transform.root != transform)
-            {
-                AddReward(2f);
-                Debug.Log("<color=yellow>NEAR MISS!</color>");
-            }
+            AddReward(0.3f);
         }
         else
         {
-            AddReward(-0.1f);
+            AddReward(-0.05f);
         }
     }
 
@@ -295,7 +248,7 @@ public class Player : Agent
         cont[0] = Input.GetAxis("Horizontal");
         cont[1] = Input.GetAxis("Vertical");
         cont[2] = Input.GetAxis("Mouse X") * 10f;
-        cont[3] = Input.GetAxis("Mouse Y") *-10f; 
+        cont[3] = Input.GetAxis("Mouse Y") * -10f;
 
         var disc = actionsOut.DiscreteActions;
         disc[0] = Input.GetMouseButton(1) ? 1 : 0;

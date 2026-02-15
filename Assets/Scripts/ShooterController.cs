@@ -20,7 +20,7 @@ public class ShooterController : MonoBehaviour
     [SerializeField] private float aimSensitivity = 0.5f;
 
     private StarterAssetsInputs _inputs;
-    private SimplePlayerAgent _agent;
+    private Player _agent;
     private ThirdPersonController _tpc;
     private Animator _anim;
     private float _lastShootTime;
@@ -28,7 +28,7 @@ public class ShooterController : MonoBehaviour
     private void Awake()
     {
         _inputs = GetComponent<StarterAssetsInputs>();
-        _agent = GetComponent<SimplePlayerAgent>();
+        _agent = GetComponent<Player>();
         _tpc = GetComponent<ThirdPersonController>();
         _anim = GetComponent<Animator>();
     }
@@ -94,5 +94,15 @@ public class ShooterController : MonoBehaviour
 
         _anim.SetTrigger("shoot");
         if (_agent != null) _agent.OnShotFired();
+    }
+
+    public bool IsCooldownReady()
+    {
+        return Time.time >= _lastShootTime + shootCooldown;
+    }
+
+    public float CooldownProgress()
+    {
+        return Mathf.Clamp01((Time.time - _lastShootTime) / shootCooldown);
     }
 }
