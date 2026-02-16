@@ -18,8 +18,8 @@ behaviors:
         gamma: 0.99
         strength: 1.0
     behavioral_cloning:
-      demo_path: ../Demonstrations/BasicPlayer.demo
-      strength: 0.1
+      demo_path: ../Demonstrations/PaintballPlayer.demo
+      strength: 0.2
       steps: 300000
     self_play:
       window: 18

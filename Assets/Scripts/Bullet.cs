@@ -9,6 +9,7 @@ public class Bullet : MonoBehaviour
     private Rigidbody bulletRigidBody;
     private float bulletSpeed = 60f;
     private float damage = 50f;
+    private bool hitOnce;
     private SimplePlayerAgent ownerAgent;
 
     private void Awake()
@@ -23,6 +24,7 @@ public class Bullet : MonoBehaviour
             bulletRigidBody.velocity = transform.forward * bulletSpeed;
         }
         Destroy(gameObject, 2f);
+        hitOnce = false;
     }
 
     public void SetOwner(SimplePlayerAgent agent)
@@ -48,14 +50,14 @@ public class Bullet : MonoBehaviour
             if (victim != null) victim.OnNearMissDetected();
             return;
         }
-        if (other.CompareTag("Player"))
+        if (other.CompareTag("Player") && !hitOnce)
         {
             ownerAgent.RegisterHit("Player", other.gameObject);
             if (victim != null) victim.TakeDamage(damage, ownerAgent);
-
+            hitOnce = true;
             Destroy(gameObject);
         }
-        else if (!other.isTrigger)
+        else if (!other.isTrigger && !hitOnce)
         {
             ownerAgent.RegisterHit(other.tag, other.gameObject);
             Destroy(gameObject);
