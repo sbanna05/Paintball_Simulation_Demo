@@ -44,7 +44,9 @@ public class SimplePlayerAgent : Agent
 
     private bool isUnderFire = false;
     private float underFireTimer = 0f;
-    private int nearMissCount = 0;
+    public int stressCounter = 0; // Ez nullázódik (a viselkedéshez kell)
+    public int totalNearMisses = 0;
+
     private int shotsFired = 0;
     private Vector2 smoothLook;
     private Vector2 smoothMove;
@@ -87,7 +89,8 @@ public class SimplePlayerAgent : Agent
         // Reset Suppression
         isUnderFire = false;
         underFireTimer = 0f;
-        nearMissCount = 0;
+        stressCounter = 0;
+        totalNearMisses = 0;
         shotsFired = 0;
 
         campTimer = 0f;
@@ -173,7 +176,7 @@ public class SimplePlayerAgent : Agent
 
             sensor.AddObservation(opponentAgent.CurrentHealth / maxHealth);
 
-            float suppressionLevel = isUnderFire ? Mathf.Clamp01(nearMissCount / 5f) + 0.1f : 0f;
+            float suppressionLevel = isUnderFire ? Mathf.Clamp01(stressCounter / 3f) + 0.1f : 0f;
             sensor.AddObservation(suppressionLevel);
         }
         else
@@ -194,7 +197,7 @@ public class SimplePlayerAgent : Agent
             if (underFireTimer <= 0)
             {
                 isUnderFire = false;
-                nearMissCount = 0;
+                stressCounter = 0;
             }
         }
         UpdateAgentMode();
@@ -305,7 +308,7 @@ public class SimplePlayerAgent : Agent
     private void UpdateAgentMode()
     {
         bool lowHealth = CurrentHealth < maxHealth * 0.6f;
-        bool suppressed = isUnderFire && nearMissCount > 3;
+        bool suppressed = isUnderFire && stressCounter > 3;
 
         if (lowHealth || suppressed)
         {
@@ -358,11 +361,11 @@ public class SimplePlayerAgent : Agent
         }
         else if (tag == "NearMiss")
         {
-            AddReward(0.5f);
+            AddReward(0.1f);
         }
         else
         {
-            AddReward(-0.02f);
+            AddReward(-0.05f);
         }
     }
 
@@ -370,9 +373,10 @@ public class SimplePlayerAgent : Agent
     {
         isUnderFire = true;
         underFireTimer = 3.0f;
-        nearMissCount++;
+        stressCounter++;
+        totalNearMisses++;
 
-        AddReward(-0.03f);
+        AddReward(-0.05f);
     }
 
     public void TakeDamage(float damage, SimplePlayerAgent attacker)
@@ -397,12 +401,12 @@ public class SimplePlayerAgent : Agent
     private void Die(SimplePlayerAgent killer)
     {
         AddReward(-1f);
-        Debug.Log($"[{gameObject.name}] DIED. Total shots: {shotsFired} total nearmiss {nearMissCount}");
+        Debug.Log($"[{gameObject.name}] DIED. Total shots: {shotsFired} total nearmiss {totalNearMisses}");
 
         if (killer != null && !killer.IsSpawning())
         {
             killer.AddReward(2f);
-            Debug.Log($"<color=red>[{killer.gameObject.name}] KILL! Total shots: {killer.shotsFired}</color>");
+            Debug.Log($"<color=red>[{killer.gameObject.name}] KILL! Total shots: {killer.shotsFired}/{killer.totalNearMisses}</color>");
             killer.EndEpisode();
         }
 

@@ -10,6 +10,7 @@ public class Bullet : MonoBehaviour
     private float bulletSpeed = 60f;
     private float damage = 50f;
     private bool hitOnce;
+    private bool nearMissRegistered = false;
     private SimplePlayerAgent ownerAgent;
 
     private void Awake()
@@ -34,18 +35,17 @@ public class Bullet : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        //Debug.Log($"BULLET HIT: {other.name} (Tag: {other.tag})");
-
-        if (bulletRigidBody == null)
-            return;
+        //Debug.Log($"BULLET HIT: {other.name} (Tag: {other.tag}) owner:{other.GetComponentInParent<SimplePlayerAgent>()}");
+        if (bulletRigidBody == null) return;
 
         if (other.transform.IsChildOf(ownerAgent.transform)) return;
 
         SimplePlayerAgent victim = other.GetComponentInParent<SimplePlayerAgent>();
         Vector3 direction = bulletRigidBody.velocity.normalized;
 
-        if (other.CompareTag("NearMiss"))
+        if (other.CompareTag("NearMiss") && victim != ownerAgent && !nearMissRegistered)
         {
+            nearMissRegistered = true;
             ownerAgent.RegisterHit("NearMiss", other.gameObject);
             if (victim != null) victim.OnNearMissDetected();
             return;
