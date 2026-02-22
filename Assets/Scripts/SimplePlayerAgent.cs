@@ -25,7 +25,7 @@ public class SimplePlayerAgent : Agent
     [Header("Training Settings")]
     [SerializeField] private float lookSmoothing = 0.15f;
     [SerializeField] private float moveSmoothing = 0.1f;
-    [SerializeField] private bool alwaysSmooth = true; // ÚJ: Always smooth!
+    [SerializeField] private bool alwaysSmooth = true;
 
     // Components
     private StarterAssetsInputs inputs;
@@ -36,7 +36,7 @@ public class SimplePlayerAgent : Agent
     private ThirdPersonController tpc;
 
     // State
-    private float maxEpisodeTime = 120f;
+    private float maxEpisodeTime = 100f;
     private float episodeTimer;
     private bool isSpawning;
     private string targetTag = "Player";
@@ -44,7 +44,7 @@ public class SimplePlayerAgent : Agent
 
     private bool isUnderFire = false;
     private float underFireTimer = 0f;
-    public int stressCounter = 0; // Ez nullázódik (a viselkedéshez kell)
+    public int stressCounter = 0;
     public int totalNearMisses = 0;
 
     private int shotsFired = 0;
@@ -53,7 +53,6 @@ public class SimplePlayerAgent : Agent
 
     // Anti-Camp
     private Vector3 lastPosition;
-    private float campTimer;
 
     public override void Initialize()
     {
@@ -93,7 +92,6 @@ public class SimplePlayerAgent : Agent
         totalNearMisses = 0;
         shotsFired = 0;
 
-        campTimer = 0f;
         lastPosition = transform.position;
 
         smoothLook = Vector2.zero;
@@ -256,50 +254,37 @@ public class SimplePlayerAgent : Agent
             AddReward(-0.0005f);
         }
 
-        /*if (currentMode == AgentMode.Offensive)
-        {
-            if (Vector3.Distance(transform.position, lastPosition) < 0.5f)
-            {
-                campTimer += Time.fixedDeltaTime;
-                if (campTimer > 5.0f)
-                {
-                    AddReward(-0.003f);
-                }
-            }
-            else
-            {
-                campTimer = 0f;
-                lastPosition = transform.position;
-            }
+        
+        float dist = Vector3.Distance(transform.position, opponentAgent.transform.position); 
+        if (dist <= 4.0f) 
+        { 
+            float proximityPenalty = Mathf.Pow(1.0f - (dist / 4.0f), 2); 
+            AddReward(-0.001f * proximityPenalty); 
         }
-        else
-        {
-            campTimer = 0f;
-        }*/
 
         if (opponentAgent != null && CheckLineOfSight())
         {
             Vector3 toEnemy = (opponentAgent.transform.position - transform.position).normalized;
 
             float bodyDot = Vector3.Dot(transform.forward, toEnemy);
-            if (bodyDot > 0.5f)
+            if (bodyDot > 0.6f)
             {
-                AddReward((bodyDot - 0.5f) * 0.002f);
+                AddReward((bodyDot - 0.6f) * 0.002f);
             }
 
             if (shooterController.gunBarrel != null)
             {
                 float gunDot = Vector3.Dot(shooterController.gunBarrel.forward, toEnemy);
-                if (gunDot > 0.7f)
+                if (gunDot > 0.85f)
                 {
-                    AddReward((gunDot - 0.7f) * 0.005f);
+                    AddReward((gunDot - 0.85f) * 0.005f);
                 }
             }
         }
 
         if (episodeTimer >= maxEpisodeTime)
         {
-            AddReward(-2f);
+            AddReward(-3f);
             Debug.Log($"[{gameObject.name}] TIMEOUT after {shotsFired} shots");
             EndEpisode();
         }
@@ -351,9 +336,9 @@ public class SimplePlayerAgent : Agent
 
         if (tag == targetTag)
         {
-            float baseReward = 4.0f;
+            float baseReward = 3.0f;
 
-            float distanceBonus = Mathf.Clamp(distance / 15f, 0.5f, 1.5f);
+            float distanceBonus = Mathf.Clamp((distance - 4f) / 15f, 0.2f, 2f);
             float finalReward = baseReward * (1f + distanceBonus);
             AddReward(finalReward);
 
@@ -361,7 +346,7 @@ public class SimplePlayerAgent : Agent
         }
         else if (tag == "NearMiss")
         {
-            AddReward(0.1f);
+            AddReward(0.05f);
         }
         else
         {
@@ -405,7 +390,7 @@ public class SimplePlayerAgent : Agent
 
         if (killer != null && !killer.IsSpawning())
         {
-            killer.AddReward(2f);
+            killer.AddReward(4f);
             Debug.Log($"<color=red>[{killer.gameObject.name}] KILL! Total shots: {killer.shotsFired}/{killer.totalNearMisses}</color>");
             killer.EndEpisode();
         }
