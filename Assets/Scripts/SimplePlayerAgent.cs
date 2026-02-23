@@ -27,7 +27,9 @@ public class SimplePlayerAgent : Agent
     [SerializeField] private float moveSmoothing = 0.1f;
     [SerializeField] private bool alwaysSmooth = true;
 
-    // Components
+    [Header("Environment")]
+    [SerializeField] private float maxCoverDistance = 50f;
+
     private StarterAssetsInputs inputs;
     private CharacterController characterController;
     private RayPerceptionSensorComponent3D raySensor;
@@ -51,8 +53,9 @@ public class SimplePlayerAgent : Agent
     private Vector2 smoothLook;
     private Vector2 smoothMove;
 
-    // Anti-Camp
     private Vector3 lastPosition;
+    
+    private Transform[] myCovers;
 
     public override void Initialize()
     {
@@ -64,6 +67,17 @@ public class SimplePlayerAgent : Agent
         tpc = GetComponent<ThirdPersonController>();
 
         CurrentHealth = maxHealth;
+
+        if (transform.parent != null)
+        {
+            var allCovers = transform.parent.GetComponentsInChildren<Transform>();
+            System.Collections.Generic.List<Transform> validCovers = new System.Collections.Generic.List<Transform>();
+            foreach (var c in allCovers)
+            {
+                if (c.CompareTag("Cover")) validCovers.Add(c);
+            }
+            myCovers = validCovers.ToArray();
+        }
 
         if (transform.parent != null)
         {
@@ -85,7 +99,6 @@ public class SimplePlayerAgent : Agent
         CurrentHealth = maxHealth;
         currentMode = AgentMode.Offensive;
 
-        // Reset Suppression
         isUnderFire = false;
         underFireTimer = 0f;
         stressCounter = 0;
@@ -127,7 +140,8 @@ public class SimplePlayerAgent : Agent
             transform.SetPositionAndRotation(agentSpawnPoints[idx].position, agentSpawnPoints[idx].rotation);
         }
 
-        if (aimTarget) aimTarget.localPosition = new Vector3(0, 1.5f, 10f);
+        if (aimTarget)
+            aimTarget.localPosition = new Vector3(0, 1.5f, 10f);
 
         Physics.SyncTransforms();
         yield return new WaitForSeconds(0.1f);
@@ -145,7 +159,7 @@ public class SimplePlayerAgent : Agent
     {
         sensor.AddObservation(CurrentHealth / maxHealth);
         sensor.AddObservation(shooterController.CooldownProgress());
-        sensor.AddObservation((float)currentMode); // 0 = Offensive, 1 = Defensive
+        sensor.AddObservation((float)currentMode);
 
         // 2. Saját irány
         sensor.AddObservation(transform.forward);
@@ -155,14 +169,13 @@ public class SimplePlayerAgent : Agent
             Vector3 toEnemy = opponentAgent.transform.position - transform.position;
             float distance = toEnemy.magnitude;
 
-            // 3. Ellenség infók
             sensor.AddObservation(toEnemy.normalized);
 
             sensor.AddObservation(Mathf.Clamp(distance / 50f, 0f, 1f));
 
             sensor.AddObservation(opponentAgent.transform.forward);
 
-            bool canSee = CheckLineOfSight();
+            bool canSee = IsEnemyVisible();
             sensor.AddObservation(canSee ? 1f : 0f);
 
             if (shooterController.gunBarrel != null)
@@ -170,11 +183,10 @@ public class SimplePlayerAgent : Agent
                 float dot = Vector3.Dot(shooterController.gunBarrel.forward, toEnemy.normalized);
                 sensor.AddObservation(dot);
             }
-            else { sensor.AddObservation(0f); }
 
             sensor.AddObservation(opponentAgent.CurrentHealth / maxHealth);
 
-            float suppressionLevel = isUnderFire ? Mathf.Clamp01(stressCounter / 3f) + 0.1f : 0f;
+            float suppressionLevel = isUnderFire ? Mathf.Clamp01(stressCounter / 3f) : 0f;
             sensor.AddObservation(suppressionLevel);
         }
         else
@@ -186,9 +198,9 @@ public class SimplePlayerAgent : Agent
     public override void OnActionReceived(ActionBuffers actions)
     {
         if (isSpawning) return;
+
         episodeTimer += Time.fixedDeltaTime;
 
-        // --- SUPPRESSION LOGIKA ---
         if (underFireTimer > 0)
         {
             underFireTimer -= Time.fixedDeltaTime;
@@ -198,19 +210,20 @@ public class SimplePlayerAgent : Agent
                 stressCounter = 0;
             }
         }
+
         UpdateAgentMode();
 
         float rawMoveX = actions.ContinuousActions[0];
         float rawMoveZ = actions.ContinuousActions[1];
-        float rawLookX = actions.ContinuousActions[2];
-        float rawLookY = actions.ContinuousActions[3];
+        float rawLookX = actions.ContinuousActions[2] * 5f;
+        float rawLookY = actions.ContinuousActions[3] * -5f ;
 
         bool shouldAim = actions.DiscreteActions[0] == 1;
         bool shouldShoot = actions.DiscreteActions[1] == 1;
         bool shouldJump = actions.DiscreteActions[2] == 1;
         bool shouldSprint = actions.DiscreteActions[3] == 1;
 
-        if (IsHeuristic())
+        if (alwaysSmooth || IsHeuristic())
         {
             smoothMove = Vector2.Lerp(smoothMove, new Vector2(rawMoveX, rawMoveZ), 1f - moveSmoothing);
             smoothLook = Vector2.Lerp(smoothLook, new Vector2(rawLookX, rawLookY), 1f - lookSmoothing);
@@ -228,14 +241,7 @@ public class SimplePlayerAgent : Agent
             inputs.aim = shouldAim;
 
             bool canShoot = shooterController.IsCooldownReady();
-
-            if (shouldShoot)
-            {
-                if (canShoot) inputs.shoot = true;
-                else inputs.shoot = false;
-            }
-            else
-                inputs.shoot = false;
+            inputs.shoot = shouldShoot && canShoot;
 
             inputs.jump = false;
             inputs.sprint = shouldSprint;
@@ -244,41 +250,27 @@ public class SimplePlayerAgent : Agent
         if (aimTarget != null && !IsHeuristic())
         {
             Vector3 lp = aimTarget.localPosition;
-            lp.y = Mathf.Clamp(lp.y + (rawLookY * Time.deltaTime * 3f), 0.5f, 4f);
-            lp.x = Mathf.Clamp(lp.x + (rawLookX * Time.deltaTime * 3f), 0.5f, 4f);
+            lp.y = Mathf.Clamp(lp.y + (rawLookY * Time.deltaTime), 0.5f, 4f);
+            lp.x = Mathf.Clamp(lp.x + (rawLookX * Time.deltaTime), -2f, 2f);
             aimTarget.localPosition = lp;
         }
 
         if (currentMode == AgentMode.Offensive)
-        {
             AddReward(-0.0005f);
-        }
 
-        
-        float dist = Vector3.Distance(transform.position, opponentAgent.transform.position); 
-        if (dist <= 4.0f) 
-        { 
-            float proximityPenalty = Mathf.Pow(1.0f - (dist / 4.0f), 2); 
-            AddReward(-0.001f * proximityPenalty); 
-        }
-
-        if (opponentAgent != null && CheckLineOfSight())
+        if (IsEnemyVisible())
         {
             Vector3 toEnemy = (opponentAgent.transform.position - transform.position).normalized;
 
             float bodyDot = Vector3.Dot(transform.forward, toEnemy);
             if (bodyDot > 0.6f)
-            {
                 AddReward((bodyDot - 0.6f) * 0.002f);
-            }
 
             if (shooterController.gunBarrel != null)
             {
                 float gunDot = Vector3.Dot(shooterController.gunBarrel.forward, toEnemy);
-                if (gunDot > 0.85f)
-                {
-                    AddReward((gunDot - 0.85f) * 0.005f);
-                }
+                if (gunDot > 0.8f)
+                    AddReward((gunDot - 0.8f) * 0.005f);
             }
         }
 
@@ -305,20 +297,61 @@ public class SimplePlayerAgent : Agent
         }
         else
         {
-            if (currentMode != AgentMode.Offensive)
-            {
-                currentMode = AgentMode.Offensive;
-            }
+            currentMode = AgentMode.Offensive;
         }
 
-        // Defensive logika: Jutalmazzuk, ha elbújik!
         if (currentMode == AgentMode.Defensive)
         {
-            if (!CheckLineOfSight() && isUnderFire)
-            {
+            if (!IsEnemyVisible() && isUnderFire)
                 AddReward(0.001f);
+        }
+    }
+
+    private bool CheckLineOfSight()
+    {
+        if (opponentAgent == null) return false;
+
+        Vector3 origin = transform.position + Vector3.up * 1.5f;
+        Vector3 target = opponentAgent.transform.position + Vector3.up * 1.5f;
+        Vector3 dir = target - origin;
+
+        if (Physics.Raycast(origin, dir, out RaycastHit hit, 60f))
+        {
+            if (hit.transform.root == opponentAgent.transform.root)
+                return true;
+        }
+        return false;
+    }
+
+    private bool IsEnemyVisible()
+    {
+        if (raySensor == null) return false;
+
+        var rayOutputs = RayPerceptionSensor.Perceive(raySensor.GetRayPerceptionInput()).RayOutputs;
+        foreach (var ray in rayOutputs)
+        {
+            if (ray.HitGameObject != null)
+            {
+                if (ray.HitGameObject.CompareTag(targetTag) || ray.HitGameObject.CompareTag("NearMiss"))
+                {
+                    return true;
+                }
             }
         }
+        return false;
+    }
+
+    private float FindClosestCover()
+    {
+        if (myCovers == null || myCovers.Length == 0) return maxCoverDistance;
+        float closest = maxCoverDistance;
+        foreach (var cover in myCovers)
+        {
+            if (cover == null) continue;
+            float dist = Vector3.Distance(transform.position, cover.position);
+            if (dist < closest) closest = dist;
+        }
+        return closest;
     }
 
     public void OnShotFired()
@@ -336,9 +369,8 @@ public class SimplePlayerAgent : Agent
 
         if (tag == targetTag)
         {
-            float baseReward = 3.0f;
-
-            float distanceBonus = Mathf.Clamp((distance - 4f) / 15f, 0.2f, 2f);
+            float baseReward = 4.0f;
+            float distanceBonus = Mathf.Clamp(distance / 15f, 0.5f, 1.5f);
             float finalReward = baseReward * (1f + distanceBonus);
             AddReward(finalReward);
 
@@ -366,11 +398,11 @@ public class SimplePlayerAgent : Agent
 
     public void TakeDamage(float damage, SimplePlayerAgent attacker)
     {
-        if (isSpawning) return;
+        if (isSpawning || CurrentHealth <= 0) return;
 
         CurrentHealth -= damage;
 
-        AddReward(-1.0f);
+        AddReward(-0.5f);
 
         Debug.Log($"[{gameObject.name}] TOOK DAMAGE: {damage} (HP: {CurrentHealth}/{maxHealth})");
 
@@ -378,14 +410,12 @@ public class SimplePlayerAgent : Agent
         underFireTimer = 3.0f;
 
         if (CurrentHealth <= 0)
-        {
             Die(attacker);
-        }
     }
 
     private void Die(SimplePlayerAgent killer)
     {
-        AddReward(-1f);
+        AddReward(-3f);
         Debug.Log($"[{gameObject.name}] DIED. Total shots: {shotsFired} total nearmiss {totalNearMisses}");
 
         if (killer != null && !killer.IsSpawning())
@@ -398,27 +428,13 @@ public class SimplePlayerAgent : Agent
         EndEpisode();
     }
 
-    private bool CheckLineOfSight()
-    {
-        if (opponentAgent == null) return false;
-        Vector3 origin = transform.position + Vector3.up * 1.5f;
-        Vector3 target = opponentAgent.transform.position + Vector3.up * 1.5f;
-        Vector3 dir = target - origin;
-
-        if (Physics.Raycast(origin, dir, out RaycastHit hit, 60f))
-        {
-            if (hit.transform.root == opponentAgent.transform.root) return true;
-        }
-        return false;
-    }
-
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         var cont = actionsOut.ContinuousActions;
         cont[0] = Input.GetAxis("Horizontal");
         cont[1] = Input.GetAxis("Vertical");
-        cont[2] = Input.GetAxis("Mouse X") * 10f;
-        cont[3] = Input.GetAxis("Mouse Y") * -10f;
+        cont[2] = Input.GetAxis("Mouse X");
+        cont[3] = Input.GetAxis("Mouse Y");
 
         var disc = actionsOut.DiscreteActions;
         disc[0] = Input.GetMouseButton(1) ? 1 : 0;

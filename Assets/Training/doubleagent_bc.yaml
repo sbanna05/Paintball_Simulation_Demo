@@ -2,10 +2,10 @@ behaviors:
   DoubleAgent:
     trainer_type: ppo
     hyperparameters:
-      batch_size: 2048
+      batch_size: 1024
       buffer_size: 20480
-      learning_rate: 0.0002
-      beta: 0.008
+      learning_rate: 0.0001
+      beta: 0.015
       epsilon: 0.2
       lambd: 0.95
       num_epoch: 3
@@ -18,12 +18,12 @@ behaviors:
         gamma: 0.99
         strength: 1.0
     behavioral_cloning:
-      demo_path: ../Demonstrations/PaintballWithCov.demo
+      demo_path: ../Demonstrations/Pbdemo.demo
       strength: 0.3
       steps: 300000
     self_play:
       window: 15
-      play_against_latest_model_ratio: 0.6
+      play_against_latest_model_ratio: 0.4
       save_steps: 20000
       swap_steps: 10000
       team_change: 80000

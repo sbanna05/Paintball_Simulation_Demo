@@ -2,11 +2,11 @@ behaviors:
   DoubleAgent:
     trainer_type: ppo
     hyperparameters:
-      batch_size: 4096
-      buffer_size: 40960
+      batch_size: 2048
+      buffer_size: 20480
       learning_rate: 0.0001
-      beta: 0.0015
-      epsilon: 0.2
+      beta: 0.001
+      epsilon: 0.22
       lambd: 0.95
       num_epoch: 3
     network_settings:
@@ -22,7 +22,7 @@ behaviors:
         strength: 1.0
     self_play:
       window: 15
-      play_against_latest_model_ratio: 0.6
+      play_against_latest_model_ratio: 0.4
       save_steps: 40000
       swap_steps: 20000
       team_change: 200000
