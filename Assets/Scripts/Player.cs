@@ -123,9 +123,21 @@ public class Player : Agent
         {
             if (_shooter.Shoot(aimTarget))
             {
-                AddReward(-0.05f);
+                AddReward(-0.02f);
                 shotsFired++;
             }
+        }
+
+        if (opponentAgent != null)
+        {
+            float dist = Vector3.Distance(transform.position, opponentAgent.transform.position);
+            Vector3 toEnemy = (opponentAgent.transform.position - transform.position).normalized;
+            float dot = Vector3.Dot(transform.forward, toEnemy);
+
+            if (dist < 5f) AddReward(-0.005f);
+            else if (dist > 8f && dist < 16f) AddReward(0.001f);
+
+            if (dot > 0.9f) AddReward(0.001f);
         }
 
         AddReward(-0.0001f);
@@ -159,25 +171,27 @@ public class Player : Agent
             sensor.AddObservation(transform.InverseTransformDirection(opponentAgent.transform.forward));
 
             float gunAlignment = Vector3.Dot(_shooter.gunBarrel.forward, toEnemy.normalized);
-            sensor.AddObservation(gunAlignment);            
+            sensor.AddObservation(gunAlignment);
         }
     }
 
     public void RegisterHit(string tag, GameObject hitObject)
     {
         if (_isSpawning) return;
-        float distance = Vector3.Distance(_shooter.gunBarrel.position, hitObject.transform.position);
+        float dist = Vector3.Distance(_shooter.gunBarrel.position, hitObject.transform.position);
 
         if (tag == targetTag)
         {
-            if (distance > 4f)
+            if (dist > 4f)
             {
-                AddReward(3.0f);
-                Debug.Log($"<color=green>[{gameObject.name}] DAMAGE!</color>");
+                float bonus = Mathf.Clamp(dist / 15f, 1f, 2.5f);
+                AddReward(2.0f * bonus);
+                Debug.Log($"<color=green>[{gameObject.name}] VALID HIT</color> Dist: {dist:F1}m");
             }
             else
             {
-                Debug.Log($"<color=red>[{gameObject.name}] too close!</color>");
+                AddReward(0.2f);
+                Debug.Log($"<color=yellow>[{gameObject.name}] Point blank hit (Low reward)</color>");
             }
         }
         else if (tag == "NearMiss")
@@ -194,7 +208,7 @@ public class Player : Agent
     {
         if (_isSpawning) return;
         totalNearMisses++;
-        AddReward(-0.05f);
+        AddReward(-0.02f);
     }
 
     public void TakeDamage(float damage, Player attacker)
@@ -202,8 +216,7 @@ public class Player : Agent
         if (_isSpawning || CurrentHealth <= 0) return;
 
         CurrentHealth -= damage;
-        AddReward(-0.4f);
-        Debug.Log($"[{gameObject.name}] TOOK DAMAGE: {damage} (HP: {CurrentHealth})");
+        AddReward(-0.5f);
 
         if (CurrentHealth <= 0)
             Die(attacker);
@@ -211,7 +224,7 @@ public class Player : Agent
 
     private void Die(Player killer)
     {
-        AddReward(-3f);
+        AddReward(-5f);
         Debug.Log($"[{gameObject.name}] DIED. Shots: {shotsFired} / {totalNearMisses}");
 
         if (killer != null)
