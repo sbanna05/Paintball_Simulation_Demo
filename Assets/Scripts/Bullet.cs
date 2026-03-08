@@ -40,20 +40,20 @@ public class Bullet : MonoBehaviour
 
         if (other.transform.IsChildOf(ownerAgent.transform)) return;
 
-        //Player victim = other.GetComponentInParent<Player>();
+        Player victim = other.GetComponentInParent<Player>();
         Vector3 direction = bulletRigidBody.velocity.normalized;
 
         if (other.CompareTag("NearMiss") && !nearMissRegistered)
         {
             nearMissRegistered = true;
             ownerAgent.RegisterHit("NearMiss", other.gameObject);
-            //if (victim != null) victim.OnNearMissDetected();
+            if (victim != null) victim.OnNearMissDetected();
             return;
         }
         if (other.CompareTag("Player") && !hitOnce)
         {
             ownerAgent.RegisterHit("Player", other.gameObject);
-            //if (victim != null) victim.TakeDamage(damage, ownerAgent);
+            if (victim != null) victim.TakeDamage(damage, ownerAgent);
             hitOnce = true;
             Destroy(gameObject);
         }

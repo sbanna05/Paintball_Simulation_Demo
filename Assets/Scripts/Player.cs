@@ -10,15 +10,18 @@ using UnityEngine.Animations.Rigging;
 public class Player : Agent
 {
     [Header("Movement Settings")]
-    public float moveSpeed = 4f;
+    public float moveSpeed = 6f;
     public float sprintMultiplier = 2f;
-    public float turnSpeed = 150f;
+    public float turnSpeed = 120f;
+
+    [Header("Combat Settings")]
+    [SerializeField] private float maxHealth = 100f;
+    public float CurrentHealth { get; private set; }
 
     [Header("References")]
+    [SerializeField] private Player opponentAgent;
     [SerializeField] private Transform aimTarget;
-    [SerializeField] private Transform enemyTarget;
     [SerializeField] private Transform[] agentSpawnPoints;
-    [SerializeField] private Transform[] enemySpawnPoints;
 
     private CharacterController _controller;
     private ShooterController _shooter;
@@ -31,11 +34,12 @@ public class Player : Agent
     private float _currentAnimSpeed;
     private float _lookYOffset;
     private int shotsFired;
+    public int stressCounter = 0;
+    public int totalNearMisses = 0;
 
     private float maxEpisodeTime = 100f;
     private float episodeTimer;
     private string targetTag = "Player";
-    private float distance;
 
     public override void Initialize()
     {
@@ -43,11 +47,19 @@ public class Player : Agent
         _shooter = GetComponent<ShooterController>();
         _anim = GetComponent<Animator>();
         _rigBuilder = GetComponent<RigBuilder>();
+        CurrentHealth = maxHealth;
+
+        if (opponentAgent == null && transform.parent != null)
+        {
+            Player[] agents = transform.parent.GetComponentsInChildren<Player>();
+            foreach (var a in agents) if (a != this) { opponentAgent = a; break; }
+        }
     }
 
     public override void OnEpisodeBegin()
     {
         episodeTimer = 0f;
+        CurrentHealth = maxHealth;
         StartCoroutine(ResetScene());
     }
 
@@ -56,16 +68,15 @@ public class Player : Agent
         _isSpawning = true;
         _controller.enabled = false;
         shotsFired = 0;
+        stressCounter = 0;
+        totalNearMisses = 0;
         _lookYOffset = 0;
 
-        if (agentSpawnPoints.Length > 0)
+        if (agentSpawnPoints != null && agentSpawnPoints.Length > 0)
         {
             int idx = Random.Range(0, agentSpawnPoints.Length);
             transform.SetPositionAndRotation(agentSpawnPoints[idx].position, agentSpawnPoints[idx].rotation);
         }
-
-        if (enemyTarget && enemySpawnPoints.Length > 0)
-            enemyTarget.position = enemySpawnPoints[Random.Range(0, enemySpawnPoints.Length)].position;
 
         yield return new WaitForFixedUpdate();
         Physics.SyncTransforms();
@@ -96,7 +107,7 @@ public class Player : Agent
         _controller.SimpleMove(move * speed);
         transform.Rotate(Vector3.up, rotateX * turnSpeed * Time.deltaTime);
 
-        _lookYOffset = Mathf.Clamp(_lookYOffset + (lookYInput * Time.deltaTime * 2f), -1.5f, 1.5f);
+        _lookYOffset = Mathf.Clamp(_lookYOffset + (lookYInput * Time.deltaTime * 2f), -2f, 4f);
 
         if (_anim)
         {
@@ -112,7 +123,7 @@ public class Player : Agent
         {
             if (_shooter.Shoot(aimTarget))
             {
-                AddReward(-0.01f);
+                AddReward(-0.05f);
                 shotsFired++;
             }
         }
@@ -133,47 +144,45 @@ public class Player : Agent
 
         currentVelocity = (transform.position - previousPosition) / Time.fixedDeltaTime;
         previousPosition = transform.position;
-        sensor.AddObservation(currentVelocity / 10f); // Normalizálva max ~10 m/s-re
+        sensor.AddObservation(currentVelocity / 10f);
 
         sensor.AddObservation(_shooter.CooldownProgress());
-
         sensor.AddObservation(_shooter.aimRig != null ? _shooter.aimRig.weight : 0f);
 
-        if (enemyTarget != null)
+        if (opponentAgent != null)
         {
-            Vector3 toEnemy = enemyTarget.position - transform.position;
-            distance = toEnemy.magnitude;
+            Vector3 toEnemy = opponentAgent.transform.position - transform.position;
+            float dist = toEnemy.magnitude;
 
-            Vector3 localEnemyDir = transform.InverseTransformDirection(toEnemy.normalized);
-            sensor.AddObservation(localEnemyDir);
+            sensor.AddObservation(transform.InverseTransformDirection(toEnemy.normalized));
+            sensor.AddObservation(Mathf.Clamp(dist / 50f, 0f, 1f));
+            sensor.AddObservation(transform.InverseTransformDirection(opponentAgent.transform.forward));
 
-            sensor.AddObservation(Mathf.Clamp(distance / 50f, 0f, 1f));
-
-            Vector3 enemyForward = transform.InverseTransformDirection(enemyTarget.transform.forward);
-            sensor.AddObservation(enemyForward);
-
-            if (_shooter != null && _shooter.gunBarrel != null)
-            {
-                Vector3 gunDir = _shooter.gunBarrel.forward;
-                float gunAlignment = Vector3.Dot(gunDir, toEnemy.normalized);
-                sensor.AddObservation(gunAlignment);
-            }
+            float gunAlignment = Vector3.Dot(_shooter.gunBarrel.forward, toEnemy.normalized);
+            sensor.AddObservation(gunAlignment);            
         }
     }
 
     public void RegisterHit(string tag, GameObject hitObject)
     {
         if (_isSpawning) return;
+        float distance = Vector3.Distance(_shooter.gunBarrel.position, hitObject.transform.position);
 
         if (tag == targetTag)
         {
-            AddReward(15f);
-            Debug.Log($"<color=green>[{gameObject.name}] DAMAGE!</color> Shots: {shotsFired} ");
-            EndEpisode();
+            if (distance > 4f)
+            {
+                AddReward(3.0f);
+                Debug.Log($"<color=green>[{gameObject.name}] DAMAGE!</color>");
+            }
+            else
+            {
+                Debug.Log($"<color=red>[{gameObject.name}] too close!</color>");
+            }
         }
         else if (tag == "NearMiss")
         {
-            AddReward(0.15f);
+            AddReward(0.08f);
         }
         else
         {
@@ -181,10 +190,37 @@ public class Player : Agent
         }
     }
 
-    public void GetHit()
+    public void OnNearMissDetected()
     {
         if (_isSpawning) return;
-        AddReward(-20f);
+        totalNearMisses++;
+        AddReward(-0.05f);
+    }
+
+    public void TakeDamage(float damage, Player attacker)
+    {
+        if (_isSpawning || CurrentHealth <= 0) return;
+
+        CurrentHealth -= damage;
+        AddReward(-0.4f);
+        Debug.Log($"[{gameObject.name}] TOOK DAMAGE: {damage} (HP: {CurrentHealth})");
+
+        if (CurrentHealth <= 0)
+            Die(attacker);
+    }
+
+    private void Die(Player killer)
+    {
+        AddReward(-3f);
+        Debug.Log($"[{gameObject.name}] DIED. Shots: {shotsFired} / {totalNearMisses}");
+
+        if (killer != null)
+        {
+            killer.AddReward(5f);
+            Debug.Log($"<color=red>[{killer.gameObject.name}] KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
+            killer.EndEpisode();
+        }
+
         EndEpisode();
     }
 
@@ -201,5 +237,4 @@ public class Player : Agent
         disc[1] = Input.GetMouseButton(0) ? 1 : 0;
         disc[2] = Input.GetKey(KeyCode.LeftShift) ? 1 : 0;
     }
-
 }
