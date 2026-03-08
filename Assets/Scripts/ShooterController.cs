@@ -1,5 +1,4 @@
 ﻿using UnityEngine;
-using StarterAssets;
 using UnityEngine.Animations.Rigging;
 using Cinemachine;
 
@@ -7,102 +6,81 @@ public class ShooterController : MonoBehaviour
 {
     [Header("Rigging & Camera")]
     [SerializeField] private CinemachineVirtualCamera aimCamera;
-    [SerializeField] public Rig aimRig;
-    [SerializeField] private Transform aimTarget;
+    [SerializeField] private LayerMask aimMask;
+    public Rig aimRig;
 
     [Header("Shooting")]
-    [SerializeField] private LayerMask aimMask;
-    [SerializeField] private Transform bulletPrefab;
-    [SerializeField] public Transform gunBarrel;
-    [SerializeField] private float shootCooldown = 0.3f;
-
-    [Header("Sensitivity")]
-    [SerializeField] private float aimSensitivity = 0.5f;
-
-    private StarterAssetsInputs _inputs;
-    private SimplePlayerAgent _agent;
-    private ThirdPersonController _tpc;
-    private Animator _anim;
+    public Transform gunBarrel;
+    public Transform bulletPrefab;
+    public float shootCooldown = 0.3f;
     private float _lastShootTime;
 
-    private void Awake()
+    private Animator _anim;
+    private Player _agent;
+    private Camera _mainCamera;
+
+    void Awake()
     {
-        _inputs = GetComponent<StarterAssetsInputs>();
-        _agent = GetComponent<SimplePlayerAgent>();
-        _tpc = GetComponent<ThirdPersonController>();
         _anim = GetComponent<Animator>();
+        _agent = GetComponent<Player>();
+        _mainCamera = Camera.main;
     }
 
-    private void LateUpdate()
+    public void SetAimState(bool isAiming, Transform aimTargetTransform, float lookYInput)
     {
-        if (_inputs == null || aimTarget == null || Camera.main == null) return;
+        if (aimCamera) aimCamera.gameObject.SetActive(isAiming);
 
-        // 1. Raycast a célzáshoz
-        Vector2 screenCenter = new Vector2(Screen.width / 2f, Screen.height / 2f);
-        Ray ray = Camera.main.ScreenPointToRay(screenCenter);
-
-        if (Physics.Raycast(ray, out RaycastHit hit, 100f, aimMask))
+        if (isAiming)
         {
-            aimTarget.position = Vector3.Lerp(aimTarget.position, hit.point, Time.deltaTime * 25f);
-        }
-        else
-        {
-            aimTarget.position = Vector3.Lerp(aimTarget.position, ray.origin + ray.direction * 50f, Time.deltaTime * 25f);
-        }
+            Vector2 screenCenter = new Vector2(Screen.width / 2f, Screen.height / 2f);
+            Ray ray = _mainCamera.ScreenPointToRay(screenCenter);
 
-        if (_inputs.aim)
-        {
-            aimCamera.gameObject.SetActive(true);
-            _tpc.setRotateOnMove(false);
-            _tpc.setSensitivity(aimSensitivity);
-
-            Vector3 worldAimDir = Camera.main.transform.forward;
-            worldAimDir.y = 0;
-            if (worldAimDir.sqrMagnitude > 0.01f)
+            Vector3 targetPosition;
+            if (Physics.Raycast(ray, out RaycastHit hit, 100f, aimMask))
             {
-                transform.forward = Vector3.Slerp(transform.forward, worldAimDir.normalized, Time.deltaTime * 30f);
+                targetPosition = hit.point;
             }
+            else
+            {
+                targetPosition = ray.origin + ray.direction * 50f;
+            }
+
+            targetPosition.y += lookYInput * 2f;
+
+            aimTargetTransform.position = Vector3.Lerp(aimTargetTransform.position, targetPosition, Time.deltaTime * 30f);
         }
         else
         {
-            aimCamera.gameObject.SetActive(false);
-            _tpc.setRotateOnMove(true);
+            // Alaphelyzet: a karakter előtt egy fix pontban, lookY eltolással
+            Vector3 defaultPos = transform.position + transform.forward * 5f + transform.up * (1.5f + lookYInput);
+            aimTargetTransform.position = Vector3.Lerp(aimTargetTransform.position, defaultPos, Time.deltaTime * 10f);
         }
 
-        float targetWeight = _inputs.aim ? 1f : 0f;
-        aimRig.weight = Mathf.Lerp(aimRig.weight, targetWeight, Time.deltaTime * 20f);
+        // Rig és Animátor frissítés
+        float targetWeight = isAiming ? 1f : 0f;
+        aimRig.weight = Mathf.Lerp(aimRig.weight, targetWeight, Time.deltaTime * 15f);
 
-        _anim.SetBool("canAim", _inputs.aim);
-        _anim.SetLayerWeight(1, aimRig.weight);
-
-        if (_inputs.aim && _inputs.shoot && Time.time > _lastShootTime + shootCooldown)
+        if (_anim)
         {
-            Shoot();
-            _lastShootTime = Time.time;
-            _inputs.shoot = false;
+            _anim.SetLayerWeight(1, aimRig.weight);
+            _anim.SetBool("canAim", isAiming);
         }
     }
 
-    private void Shoot()
+    public bool Shoot(Transform aimTarget)
     {
-        Vector3 dir = (aimTarget.position - gunBarrel.position).normalized;
-        Transform b = Instantiate(bulletPrefab, gunBarrel.position, Quaternion.LookRotation(dir));
+        if (Time.time < _lastShootTime + shootCooldown) return false;
+
+        Vector3 shootDir = (aimTarget.position - gunBarrel.position).normalized;
+        Transform b = Instantiate(bulletPrefab, gunBarrel.position, Quaternion.LookRotation(shootDir));
+
         if (b.TryGetComponent<Bullet>(out var bullet))
-        {
             bullet.SetOwner(_agent);
-        }
 
-        _anim.SetTrigger("shoot");
-        if (_agent != null) _agent.OnShotFired();
+        if (_anim) _anim.SetTrigger("shoot");
+        _lastShootTime = Time.time;
+        return true;
     }
 
-    public bool IsCooldownReady()
-    {
-        return Time.time >= _lastShootTime + shootCooldown;
-    }
-
-    public float CooldownProgress()
-    {
-        return Mathf.Clamp01((Time.time - _lastShootTime) / shootCooldown);
-    }
+    public float CooldownProgress() => Mathf.Clamp01((Time.time - _lastShootTime) / shootCooldown);
 }

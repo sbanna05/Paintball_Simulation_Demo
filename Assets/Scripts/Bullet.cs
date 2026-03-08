@@ -11,7 +11,7 @@ public class Bullet : MonoBehaviour
     private float damage = 50f;
     private bool hitOnce;
     private bool nearMissRegistered = false;
-    private SimplePlayerAgent ownerAgent;
+    private Player ownerAgent;
 
     private void Awake()
     {
@@ -28,32 +28,32 @@ public class Bullet : MonoBehaviour
         hitOnce = false;
     }
 
-    public void SetOwner(SimplePlayerAgent agent)
+    public void SetOwner(Player agent)
     {
         ownerAgent = agent;
     }
 
     private void OnTriggerEnter(Collider other)
     {
-        //Debug.Log($"BULLET HIT: {other.name} (Tag: {other.tag}) owner:{other.GetComponentInParent<SimplePlayerAgent>()}");
+        //Debug.Log($"BULLET HIT: {other.name} (Tag: {other.tag}) owner:{other.GetComponentInParent<Player>()}");
         if (bulletRigidBody == null) return;
 
         if (other.transform.IsChildOf(ownerAgent.transform)) return;
 
-        SimplePlayerAgent victim = other.GetComponentInParent<SimplePlayerAgent>();
+        //Player victim = other.GetComponentInParent<Player>();
         Vector3 direction = bulletRigidBody.velocity.normalized;
 
-        if (other.CompareTag("NearMiss") && victim != ownerAgent && !nearMissRegistered)
+        if (other.CompareTag("NearMiss") && !nearMissRegistered)
         {
             nearMissRegistered = true;
             ownerAgent.RegisterHit("NearMiss", other.gameObject);
-            if (victim != null) victim.OnNearMissDetected();
+            //if (victim != null) victim.OnNearMissDetected();
             return;
         }
         if (other.CompareTag("Player") && !hitOnce)
         {
             ownerAgent.RegisterHit("Player", other.gameObject);
-            if (victim != null) victim.TakeDamage(damage, ownerAgent);
+            //if (victim != null) victim.TakeDamage(damage, ownerAgent);
             hitOnce = true;
             Destroy(gameObject);
         }

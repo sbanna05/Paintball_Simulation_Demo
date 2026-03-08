@@ -2,105 +2,129 @@
 using Unity.MLAgents;
 using Unity.MLAgents.Sensors;
 using Unity.MLAgents.Actuators;
-using StarterAssets;
 using System.Collections;
 using Unity.MLAgents.Policies;
 using UnityEngine.Animations.Rigging;
 
+[RequireComponent(typeof(CharacterController))]
 public class Player : Agent
 {
+    [Header("Movement Settings")]
+    public float moveSpeed = 4f;
+    public float sprintMultiplier = 2f;
+    public float turnSpeed = 150f;
+
     [Header("References")]
     [SerializeField] private Transform aimTarget;
     [SerializeField] private Transform enemyTarget;
     [SerializeField] private Transform[] agentSpawnPoints;
     [SerializeField] private Transform[] enemySpawnPoints;
 
-    private StarterAssetsInputs inputs;
-    private CharacterController characterController;
-    private ShooterController shooterController;
-    private RigBuilder rigBuilder;
-    private RayPerceptionSensorComponent3D raySensor;
-    private ThirdPersonController tpc;
+    private CharacterController _controller;
+    private ShooterController _shooter;
+    private Animator _anim;
+    private RigBuilder _rigBuilder;
 
     private Vector3 previousPosition;
     private Vector3 currentVelocity;
+    private bool _isSpawning = false;
+    private float _currentAnimSpeed;
+    private float _lookYOffset;
+    private int shotsFired;
 
     private float maxEpisodeTime = 100f;
     private float episodeTimer;
-    private bool isSpawning;
     private string targetTag = "Player";
     private float distance;
 
     public override void Initialize()
     {
-        inputs = GetComponent<StarterAssetsInputs>();
-        characterController = GetComponent<CharacterController>();
-        raySensor = GetComponent<RayPerceptionSensorComponent3D>();
-        shooterController = GetComponent<ShooterController>();
-        rigBuilder = GetComponent<RigBuilder>();
-        tpc = GetComponent<ThirdPersonController>();
+        _controller = GetComponent<CharacterController>();
+        _shooter = GetComponent<ShooterController>();
+        _anim = GetComponent<Animator>();
+        _rigBuilder = GetComponent<RigBuilder>();
     }
 
     public override void OnEpisodeBegin()
     {
         episodeTimer = 0f;
-        StartCoroutine(SafeSpawnWithDummy());
+        StartCoroutine(ResetScene());
     }
 
-    private IEnumerator SafeSpawnWithDummy()
+    private IEnumerator ResetScene()
     {
-        isSpawning = true;
+        _isSpawning = true;
+        _controller.enabled = false;
+        shotsFired = 0;
+        _lookYOffset = 0;
 
-        // 1. Minden lekapcsolása (Critical for Burst)
-        if (tpc) tpc.enabled = false;
-        if (shooterController) shooterController.enabled = false;
-        if (rigBuilder) rigBuilder.enabled = false;
-        if (characterController) characterController.enabled = false;
-
-        // 2. Input reset
-        if (inputs)
-        {
-            inputs.move = Vector2.zero;
-            inputs.look = Vector2.zero;
-            inputs.aim = false;
-            inputs.jump = false;
-            inputs.shoot = false;
-        }
-
-        yield return new WaitForFixedUpdate();
-
-        // 3. Player Teleport
         if (agentSpawnPoints.Length > 0)
         {
             int idx = Random.Range(0, agentSpawnPoints.Length);
             transform.SetPositionAndRotation(agentSpawnPoints[idx].position, agentSpawnPoints[idx].rotation);
         }
 
-        if (enemyTarget != null && enemySpawnPoints.Length > 0)
+        if (enemyTarget && enemySpawnPoints.Length > 0)
+            enemyTarget.position = enemySpawnPoints[Random.Range(0, enemySpawnPoints.Length)].position;
+
+        yield return new WaitForFixedUpdate();
+        Physics.SyncTransforms();
+
+        previousPosition = transform.position;
+        _controller.enabled = true;
+        _isSpawning = false;
+    }
+
+    public override void OnActionReceived(ActionBuffers actions)
+    {
+        if (_isSpawning) return;
+
+        episodeTimer += Time.fixedDeltaTime;
+
+        float moveForward = actions.ContinuousActions[0];
+        float moveSide = actions.ContinuousActions[1];
+        float rotateX = actions.ContinuousActions[2];
+        float lookYInput = actions.ContinuousActions[3];
+
+        bool isAiming = actions.DiscreteActions[0] == 1;
+        bool shootCommand = actions.DiscreteActions[1] == 1;
+        bool shouldSprint = actions.DiscreteActions[2] == 1;
+
+        // --- MOZGÁS ---
+        float speed = (shouldSprint && !isAiming) ? moveSpeed * sprintMultiplier : moveSpeed;
+        Vector3 move = transform.forward * moveForward + transform.right * moveSide;
+        _controller.SimpleMove(move * speed);
+        transform.Rotate(Vector3.up, rotateX * turnSpeed * Time.deltaTime);
+
+        _lookYOffset = Mathf.Clamp(_lookYOffset + (lookYInput * Time.deltaTime * 2f), -1.5f, 1.5f);
+
+        if (_anim)
         {
-            int enemyIdx = Random.Range(0, enemySpawnPoints.Length);
-            int attempts = 0;
-            while (Vector3.Distance(enemySpawnPoints[enemyIdx].position, transform.position) < 8f && attempts < 20)
-            {
-                enemyIdx = Random.Range(0, enemySpawnPoints.Length);
-                attempts++;
-            }
-            enemyTarget.SetPositionAndRotation(enemySpawnPoints[enemyIdx].position, enemySpawnPoints[enemyIdx].rotation);
+            float targetAnimSpeed = move.magnitude * (speed / moveSpeed);
+            _currentAnimSpeed = Mathf.Lerp(_currentAnimSpeed, targetAnimSpeed, Time.deltaTime * 10f);
+            _anim.SetFloat("Speed", _currentAnimSpeed);
+            _anim.SetFloat("MotionSpeed", 1f);
         }
 
-        // 5. Aim Target Reset
-        if (aimTarget) aimTarget.localPosition = new Vector3(0, 1.5f, 10f);
+        _shooter.SetAimState(isAiming, aimTarget, _lookYOffset);
 
-        Physics.SyncTransforms();
-        yield return new WaitForSeconds(0.15f); // Biztonsági idő
+        if (isAiming && shootCommand)
+        {
+            if (_shooter.Shoot(aimTarget))
+            {
+                AddReward(-0.01f);
+                shotsFired++;
+            }
+        }
 
-        // 6. Visszakapcsolás
-        if (characterController) characterController.enabled = true;
-        if (shooterController) shooterController.enabled = true;
-        if (rigBuilder) rigBuilder.enabled = true;
-        if (tpc) { tpc.enabled = true; }
+        AddReward(-0.0001f);
 
-        isSpawning = false;
+        if (episodeTimer >= maxEpisodeTime)
+        {
+            AddReward(-5f);
+            Debug.Log($"[{gameObject.name}] TIMEOUT after {shotsFired} shots");
+            EndEpisode();
+        }
     }
 
     public override void CollectObservations(VectorSensor sensor)
@@ -111,15 +135,13 @@ public class Player : Agent
         previousPosition = transform.position;
         sensor.AddObservation(currentVelocity / 10f); // Normalizálva max ~10 m/s-re
 
-        sensor.AddObservation(inputs != null && inputs.aim ? 1f : 0f);
+        sensor.AddObservation(_shooter.CooldownProgress());
 
-        sensor.AddObservation(shooterController.CooldownProgress());
-
-        sensor.AddObservation(shooterController.aimRig != null ? shooterController.aimRig.weight : 0f);
+        sensor.AddObservation(_shooter.aimRig != null ? _shooter.aimRig.weight : 0f);
 
         if (enemyTarget != null)
         {
-            Vector3 toEnemy = enemyTarget.transform.position - transform.position;
+            Vector3 toEnemy = enemyTarget.position - transform.position;
             distance = toEnemy.magnitude;
 
             Vector3 localEnemyDir = transform.InverseTransformDirection(toEnemy.normalized);
@@ -130,111 +152,28 @@ public class Player : Agent
             Vector3 enemyForward = transform.InverseTransformDirection(enemyTarget.transform.forward);
             sensor.AddObservation(enemyForward);
 
-            if (shooterController != null && shooterController.gunBarrel != null)
+            if (_shooter != null && _shooter.gunBarrel != null)
             {
-                Vector3 gunDir = shooterController.gunBarrel.forward;
+                Vector3 gunDir = _shooter.gunBarrel.forward;
                 float gunAlignment = Vector3.Dot(gunDir, toEnemy.normalized);
                 sensor.AddObservation(gunAlignment);
             }
         }
     }
 
-    public override void OnActionReceived(ActionBuffers actions)
-    {
-        if (isSpawning) return;
-
-        episodeTimer += Time.fixedDeltaTime;
-
-        float moveX = actions.ContinuousActions[0];
-        float moveZ = actions.ContinuousActions[1];
-        float lookX = actions.ContinuousActions[2];
-        float lookY = actions.ContinuousActions[3];
-
-        bool shouldAim = actions.DiscreteActions[0] == 1;
-        bool shouldShoot = actions.DiscreteActions[1] == 1;
-        bool shouldJump = actions.DiscreteActions[2] == 1;
-        bool shouldSprint = actions.DiscreteActions[3] == 1;
-
-        if (inputs != null)
-        {
-            inputs.move = new Vector2(moveX, moveZ);
-
-            if (IsHeuristic())
-            {
-                transform.Rotate(Vector3.up, lookX * 200f * Time.deltaTime);
-                inputs.look = Vector2.zero;
-            }
-            else
-            {
-                inputs.look = new Vector2(lookX, lookY);
-            }
-
-            inputs.aim = shouldAim;
-            inputs.shoot = shouldShoot;
-            inputs.jump = false;
-            inputs.sprint = shouldSprint;
-        }
-        
-        AddReward(-0.0002f);
-
-        if (aimTarget != null && !IsHeuristic())
-        {
-            Vector3 lp = aimTarget.localPosition;
-            lp.y = Mathf.Clamp(lp.y + (lookY * Time.deltaTime * 5f), 0.5f, 3.5f);
-            lp.x = Mathf.Clamp(lp.x + (lookX * Time.deltaTime * 5f), -2f, 2f);
-            aimTarget.localPosition = lp;
-        }
-
-        if (enemyTarget != null)
-        {
-            float distance = Vector3.Distance(transform.position, enemyTarget.position);
-            Vector3 toEnemy = (enemyTarget.position - transform.position).normalized;
-            float dot = Vector3.Dot(transform.forward, toEnemy);
-
-            if (dot > 0.7f)
-                AddReward(0.003f * dot);
-
-            if (distance < 5f)
-                AddReward(-0.01f);
-
-            if (distance > 8f && distance < 18f)
-                AddReward(0.002f);
-        }
-
-        if (episodeTimer >= maxEpisodeTime)
-        {
-            AddReward(-5f);
-            Debug.Log("<color=red>timeout!</color>");
-            EndEpisode();
-        }
-    }
-
-    public void OnShotFired()
-    {
-        AddReward(-0.002f);
-    }
-
-
-    public void GetHit()
-    {
-        if (isSpawning) return;
-
-        AddReward(-25f);
-        EndEpisode();
-    }
-
     public void RegisterHit(string tag, GameObject hitObject)
     {
-        if (isSpawning) return;
+        if (_isSpawning) return;
 
         if (tag == targetTag)
         {
-            AddReward(30f);
+            AddReward(15f);
+            Debug.Log($"<color=green>[{gameObject.name}] DAMAGE!</color> Shots: {shotsFired} ");
             EndEpisode();
         }
         else if (tag == "NearMiss")
         {
-            AddReward(0.3f);
+            AddReward(0.15f);
         }
         else
         {
@@ -242,20 +181,25 @@ public class Player : Agent
         }
     }
 
+    public void GetHit()
+    {
+        if (_isSpawning) return;
+        AddReward(-20f);
+        EndEpisode();
+    }
+
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         var cont = actionsOut.ContinuousActions;
-        cont[0] = Input.GetAxis("Horizontal");
-        cont[1] = Input.GetAxis("Vertical");
-        cont[2] = Input.GetAxis("Mouse X") * 10f;
-        cont[3] = Input.GetAxis("Mouse Y") * -10f;
+        cont[0] = Input.GetAxis("Vertical");
+        cont[1] = Input.GetAxis("Horizontal");
+        cont[2] = Input.GetAxis("Mouse X");
+        cont[3] = Input.GetAxis("Mouse Y");
 
         var disc = actionsOut.DiscreteActions;
         disc[0] = Input.GetMouseButton(1) ? 1 : 0;
         disc[1] = Input.GetMouseButton(0) ? 1 : 0;
-        disc[2] = Input.GetKey(KeyCode.Space) ? 1 : 0;
-        disc[3] = Input.GetKey(KeyCode.LeftShift) ? 1 : 0;
+        disc[2] = Input.GetKey(KeyCode.LeftShift) ? 1 : 0;
     }
 
-    public bool IsHeuristic() => GetComponent<BehaviorParameters>().BehaviorType == BehaviorType.HeuristicOnly;
 }

@@ -239,9 +239,7 @@ public class SimplePlayerAgent : Agent
             inputs.move = smoothMove;
             inputs.look = smoothLook;
             inputs.aim = shouldAim;
-
-            bool canShoot = shooterController.IsCooldownReady();
-            inputs.shoot = shouldShoot && canShoot;
+            inputs.shoot = shouldShoot;
 
             inputs.jump = false;
             inputs.sprint = shouldSprint;
