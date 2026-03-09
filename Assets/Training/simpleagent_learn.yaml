@@ -24,13 +24,13 @@ behaviors:
     self_play:
       window: 15
       play_against_latest_model_ratio: 0.4
-      save_steps: 20000
-      swap_steps: 10000
-      team_change: 80000
+      save_steps: 40000
+      swap_steps: 20000
+      team_change: 100000
     max_steps: 4000000
     time_horizon: 256
     summary_freq: 10000
-    checkpoint_interval: 50000
+    checkpoint_interval: 100000
     keep_checkpoints: 5
     threaded: true
     
