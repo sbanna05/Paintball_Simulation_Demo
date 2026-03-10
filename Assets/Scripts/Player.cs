@@ -9,6 +9,8 @@ using UnityEngine.Animations.Rigging;
 [RequireComponent(typeof(CharacterController))]
 public class Player : Agent
 {
+    public enum AgentMode { Offensive, Defensive }
+
     [Header("Movement Settings")]
     public float moveSpeed = 6f;
     public float sprintMultiplier = 2f;
@@ -17,6 +19,7 @@ public class Player : Agent
     [Header("Combat Settings")]
     [SerializeField] private float maxHealth = 100f;
     public float CurrentHealth { get; private set; }
+    public AgentMode currentMode = AgentMode.Offensive;
 
     [Header("References")]
     [SerializeField] private Player opponentAgent;
@@ -35,8 +38,11 @@ public class Player : Agent
     private float _currentAnimSpeed;
     private float _lookYOffset;
     private int shotsFired;
+
     public int stressCounter;
     public int totalNearMisses;
+    private bool isUnderFire = false;
+    private float underFireTimer = 0f;
 
     private float maxEpisodeTime = 100f;
     private float episodeTimer;
@@ -62,9 +68,13 @@ public class Player : Agent
     {
         episodeTimer = 0f;
         CurrentHealth = maxHealth;
-        shotsFired = 0;
+        shotsFired = 0;        
         stressCounter = 0;
         totalNearMisses = 0;
+
+        isUnderFire = false;
+        underFireTimer = 0f;
+        currentMode = AgentMode.Offensive;
 
         StartCoroutine(ResetScene());
     }
@@ -94,6 +104,12 @@ public class Player : Agent
         if (_isSpawning) return;
 
         episodeTimer += Time.fixedDeltaTime;
+
+        if (underFireTimer > 0)
+        {
+            underFireTimer -= Time.fixedDeltaTime;
+            if (underFireTimer <= 0) { isUnderFire = false; stressCounter = 0; }
+        }
 
         float moveForward = actions.ContinuousActions[0];
         float moveSide = actions.ContinuousActions[1];
@@ -130,6 +146,7 @@ public class Player : Agent
             }
         }
 
+        UpdateAgentMode();
         AddReward(-0.0001f);
         if (opponentAgent != null && IsEnemyVisible())
         {
@@ -170,7 +187,8 @@ public class Player : Agent
 
         currentVelocity = (transform.position - previousPosition) / Time.fixedDeltaTime;
         previousPosition = transform.position;
-        sensor.AddObservation(currentVelocity / 10f);
+        sensor.AddObservation(currentVelocity.magnitude / 10f);
+        sensor.AddObservation(CurrentHealth / maxHealth);
 
         sensor.AddObservation(_shooter.CooldownProgress());
         sensor.AddObservation(_shooter.aimRig != null ? _shooter.aimRig.weight : 0f);
@@ -187,7 +205,27 @@ public class Player : Agent
             float gunAlignment = Vector3.Dot(_shooter.gunBarrel.forward, toEnemy.normalized);
             sensor.AddObservation(gunAlignment);
         }
+        sensor.AddObservation(IsEnemyVisible() ? 1f : 0f);
     }
+
+    private void UpdateAgentMode()
+    {
+        bool lowHealth = CurrentHealth <= maxHealth * 0.5f;
+        bool suppressed = isUnderFire && stressCounter > 2;
+
+        if (lowHealth || suppressed)
+        {
+            if (currentMode != AgentMode.Defensive)
+            {
+                currentMode = AgentMode.Defensive;
+                AddReward(0.05f);
+            }
+        }
+        else
+            currentMode = AgentMode.Offensive;
+
+    }
+
 
     public void RegisterHit(string tag, GameObject hitObject)
     {
@@ -201,7 +239,6 @@ public class Player : Agent
                 AddReward(0.1f);
                 Debug.Log($"<color=yellow>[{gameObject.name}] Too Close! ({dist:F1}m) </color>");
             }
-            // Valid találat
             else
             {
                 float baseReward = 2.0f;
@@ -227,6 +264,10 @@ public class Player : Agent
     public void OnNearMissDetected()
     {
         if (_isSpawning) return;
+        isUnderFire = true;
+        underFireTimer = 3.0f;
+
+        stressCounter++;
         totalNearMisses++;
         AddReward(-0.03f);
     }
@@ -234,6 +275,9 @@ public class Player : Agent
     public void TakeDamage(float damage, Player attacker)
     {
         if (_isSpawning || CurrentHealth <= 0) return;
+
+        isUnderFire = true;
+        underFireTimer = 3.0f;
 
         CurrentHealth -= damage;
         AddReward(-0.5f);
@@ -244,12 +288,12 @@ public class Player : Agent
 
     private void Die(Player killer)
     {
-        AddReward(-1.0f);
+        AddReward(-2.0f);
         Debug.Log($"[{gameObject.name}] DIED. Shots: {shotsFired} / {totalNearMisses}");
 
         if (killer != null)
         {
-            killer.AddReward(2f);
+            killer.AddReward(3f);
             Debug.Log($"<color=red>[{killer.gameObject.name}] KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
             killer.EndEpisode();
         }
@@ -271,6 +315,22 @@ public class Player : Agent
                     return true;
                 }
             }
+        }
+        return false;
+    }
+
+    private bool CheckLineOfSight()
+    {
+        if (opponentAgent == null) return false;
+
+        Vector3 origin = transform.position + Vector3.up * 1.5f;
+        Vector3 target = opponentAgent.transform.position + Vector3.up * 1.5f;
+        Vector3 dir = target - origin;
+
+        if (Physics.Raycast(origin, dir, out RaycastHit hit, 60f))
+        {
+            if (hit.transform.root == opponentAgent.transform.root)
+                return true;
         }
         return false;
     }
