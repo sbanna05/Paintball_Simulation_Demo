@@ -153,29 +153,28 @@ public class Player : Agent
             float dist = Vector3.Distance(transform.position, opponentAgent.transform.position);
             Vector3 toEnemy = (opponentAgent.transform.position - transform.position).normalized;
 
-            // JAVÍTÁS #1: BODY ALIGNMENT REWARD
-            /*float bodyDot = Vector3.Dot(transform.forward, toEnemy);
-            if (bodyDot > 0.8f)
+            float bodyDot = Vector3.Dot(transform.forward, toEnemy);
+            if (bodyDot > 0.9f)
             {
-                AddReward((bodyDot - 0.8f) * 0.004f);
+                AddReward((bodyDot - 0.9f) * 0.004f);
+            }
+
+            /*if (dist < 4f)
+            {
+                float proximityPenalty = Mathf.Pow((4f - dist), 2);
+                AddReward(-0.03f * proximityPenalty);
             }*/
 
-            if (dist < 6f)
+           /* if (dist >= 8f && dist <= 20f)
             {
-                float proximityPenalty = Mathf.Pow((6f - dist) / 6f, 2);
-                AddReward(-0.02f * proximityPenalty);
-            }
-
-            if (dist >= 8f && dist <= 20f)
-            {
-                float optimalness = 1f - Mathf.Abs(dist - 12f) / 8f;
+                float optimalness = 1f - Mathf.Abs(dist - 8f) / 12f;
                 AddReward(0.005f * optimalness);
-            }
+            }*/
         }
 
         if (episodeTimer >= maxEpisodeTime)
         {
-            AddReward(-4.0f);
+            AddReward(-6.0f);
             Debug.Log($"[{gameObject.name}] TIMEOUT after {shotsFired} shots");
             EndEpisode();
         }
@@ -211,7 +210,7 @@ public class Player : Agent
     private void UpdateAgentMode()
     {
         bool lowHealth = CurrentHealth <= maxHealth * 0.5f;
-        bool suppressed = isUnderFire && stressCounter > 2;
+        bool suppressed = isUnderFire && stressCounter > 3;
 
         if (lowHealth || suppressed)
         {
@@ -234,18 +233,18 @@ public class Player : Agent
 
         if (tag == targetTag)
         {
-            if (dist <= 5f)
+            if (dist < 4f)
             {
-                AddReward(0.1f);
+               // AddReward(0.1f);
                 Debug.Log($"<color=yellow>[{gameObject.name}] Too Close! ({dist:F1}m) </color>");
             }
             else
             {
-                float baseReward = 2.0f;
+                float baseReward = 3.0f;
                 /* float distanceMultiplier = dist / 10f;
                  float finalReward = baseReward * distanceMultiplier;*/
 
-                float distanceBonus = Mathf.Clamp((dist - 8f) / 10f, 0f, 5f);
+                float distanceBonus = Mathf.Clamp(dist / 10f, 0f, 5f);
                 float finalReward = baseReward + distanceBonus;
 
                 Debug.Log($"<color=green>[{gameObject.name}] HIT!</color> Dist: {dist:F1}m Reward: {finalReward:F2}");
@@ -293,8 +292,17 @@ public class Player : Agent
 
         if (killer != null)
         {
-            killer.AddReward(3f);
-            Debug.Log($"<color=red>[{killer.gameObject.name}] KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
+            float dist = Vector3.Distance(transform.position, killer.transform.position);
+            if (dist > 2f)
+            {
+                killer.AddReward(5f + (dist / 10f));
+                Debug.Log($"<color=red>[{killer.gameObject.name}] KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
+            }
+            else
+            {
+                //killer.AddReward(0.5f);
+                Debug.Log($"<color=orange>CLOSE RANGE KILL</color>");
+            }
             killer.EndEpisode();
         }
 
