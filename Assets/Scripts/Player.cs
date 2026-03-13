@@ -148,6 +148,9 @@ public class Player : Agent
 
         UpdateAgentMode();
         AddReward(-0.0001f);
+        
+        if (currentMode == AgentMode.Defensive && !CheckLineOfSight()) AddReward(0.001f);
+
         if (opponentAgent != null && IsEnemyVisible())
         {
             float dist = Vector3.Distance(transform.position, opponentAgent.transform.position);
@@ -160,11 +163,11 @@ public class Player : Agent
                 AddReward((bodyDot - 0.8f) * 0.004f);
             }*/
 
-            if (dist < 3f)
+           /* if (dist < 3f)
             {
-                float proximityPenalty = Mathf.Pow((6f - dist) / 6f, 2);
+                float proximityPenalty = Mathf.Pow((3f - dist), 2);
                 AddReward(-0.02f * proximityPenalty);
-            }
+            }*/
 
             if (dist >= 8f && dist <= 20f)
             {
@@ -175,7 +178,7 @@ public class Player : Agent
 
         if (episodeTimer >= maxEpisodeTime)
         {
-            AddReward(-5.0f);
+            AddReward(-6.0f);
             Debug.Log($"[{gameObject.name}] TIMEOUT after {shotsFired} shots");
             EndEpisode();
         }
@@ -218,7 +221,7 @@ public class Player : Agent
             if (currentMode != AgentMode.Defensive)
             {
                 currentMode = AgentMode.Defensive;
-                AddReward(0.05f);
+                //AddReward(0.05f);
             }
         }
         else
@@ -234,21 +237,26 @@ public class Player : Agent
 
         if (tag == targetTag)
         {
-            if (dist < 4f)
+            if (dist < 3f)
             {
-                AddReward(0.1f);
+                //AddReward(0.1f);
                 Debug.Log($"<color=yellow>[{gameObject.name}] Too Close! ({dist:F1}m) </color>");
             }
-            else
+            else if (dist >= 3f && dist < 20f)
             {
-                float baseReward = 2.0f;
+                float baseReward = 3.0f;
                 /* float distanceMultiplier = dist / 10f;
                  float finalReward = baseReward * distanceMultiplier;*/
 
-                float distanceBonus = Mathf.Clamp((dist - 8f) / 10f, 0f, 5f);
-                float finalReward = baseReward + distanceBonus;
+                float distanceBonus = Mathf.Clamp((dist - 3f) / 10f, 0f, 5f);
+                float finalReward = distanceBonus > 1.0f ? baseReward * distanceBonus : baseReward;
 
                 Debug.Log($"<color=green>[{gameObject.name}] HIT!</color> Dist: {dist:F1}m Reward: {finalReward:F2}");
+            }
+            else
+            {
+                AddReward(10f);
+                Debug.Log($"<color=cyan>[{gameObject.name}] Sniper hit! ({dist:F1}m) </color>");
             }
         }
         else if (tag == "NearMiss")
@@ -294,12 +302,12 @@ public class Player : Agent
         if (killer != null)
         {
             float dist = Vector3.Distance(transform.position, killer.transform.position);
-            if (dist > 3f)
+            if (dist > 3f && dist < 20f)
             {
                 killer.AddReward(5f + (dist / 10f));
                 Debug.Log($"<color=red>[{killer.gameObject.name}] KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
             }
-            else if (dist > 20)
+            else if (dist >= 20)
             {
                 killer.AddReward(10f);
                 Debug.Log($"<color=red>[{killer.gameObject.name}]Far KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
