@@ -142,13 +142,13 @@ public class Player : Agent
         {
             if (_shooter.Shoot(aimTarget))
             {
-                AddReward(-0.01f);
+                AddReward(-0.02f);
                 shotsFired++;
             }
         }
 
         UpdateAgentMode();
-        AddReward(-0.0001f);
+        AddReward(-0.0002f);
 
         if (opponentAgent != null)
         {
@@ -156,8 +156,8 @@ public class Player : Agent
 
             if (dist < 3f)
             {
-                AddReward(-2.0f);
-                opponentAgent.AddReward(-2.0f);
+                AddReward(-3.0f);
+                opponentAgent.AddReward(-3.0f);
                 Debug.Log($"<color=yellow>Too close ({dist:F1}m). Both reset.</color>");
 
                 opponentAgent.EndEpisode();
@@ -303,7 +303,7 @@ public class Player : Agent
             Debug.Log($"<color=red>[{killer.gameObject.name}] TACTICAL KILL! Reward: +{killBonus:F1} (Dist: {dist:F1}m) {killer.shotsFired}/{killer.totalNearMisses}</color>");
         }
         else if (dist >= 18){
-            killBonus = 10f;
+            killBonus = 15f;
             Debug.Log($"<color=cyan>[{killer.gameObject.name}] far KILL! Reward: +{killBonus:F1} (Dist: {dist:F1}m) {killer.shotsFired}/{killer.totalNearMisses}</color>");
         }
 
