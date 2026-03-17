@@ -1,0 +1,66 @@
+{
+    "DoubleAgent": {
+        "checkpoints": [
+            {
+                "steps": 999806,
+                "file_path": "results\\mulitagent_03_onBackToBasic01v1_v8\\DoubleAgent\\DoubleAgent-999806.onnx",
+                "reward": -0.754425048828125,
+                "creation_time": 1773771291.8642242,
+                "auxillary_file_paths": [
+                    "results\\mulitagent_03_onBackToBasic01v1_v8\\DoubleAgent\\DoubleAgent-999806.pt"
+                ]
+            },
+            {
+                "steps": 1099853,
+                "file_path": "results\\mulitagent_03_onBackToBasic01v1_v8\\DoubleAgent\\DoubleAgent-1099853.onnx",
+                "reward": -0.5973190837181531,
+                "creation_time": 1773771995.9022505,
+                "auxillary_file_paths": [
+                    "results\\mulitagent_03_onBackToBasic01v1_v8\\DoubleAgent\\DoubleAgent-1099853.pt"
+                ]
+            },
+            {
+                "steps": 1199561,
+                "file_path": "results\\mulitagent_03_onBackToBasic01v1_v8\\DoubleAgent\\DoubleAgent-1199561.onnx",
+                "reward": -0.1240704217377831,
+                "creation_time": 1773772603.521982,
+                "auxillary_file_paths": [
+                    "results\\mulitagent_03_onBackToBasic01v1_v8\\DoubleAgent\\DoubleAgent-1199561.pt"
+                ]
+            },
+            {
+                "steps": 1299918,
+                "file_path": "results\\mulitagent_03_onBackToBasic01v1_v8\\DoubleAgent\\DoubleAgent-1299918.onnx",
+                "reward": -2.0966832414269447,
+                "creation_time": 1773773277.5982356,
+                "auxillary_file_paths": [
+                    "results\\mulitagent_03_onBackToBasic01v1_v8\\DoubleAgent\\DoubleAgent-1299918.pt"
+                ]
+            },
+            {
+                "steps": 1302234,
+                "file_path": "results\\mulitagent_03_onBackToBasic01v1_v8\\DoubleAgent\\DoubleAgent-1302234.onnx",
+                "reward": -2.1699056161301478,
+                "creation_time": 1773773287.6188533,
+                "auxillary_file_paths": [
+                    "results\\mulitagent_03_onBackToBasic01v1_v8\\DoubleAgent\\DoubleAgent-1302234.pt"
+                ]
+            }
+        ],
+        "elo": 1105.966223976449,
+        "final_checkpoint": {
+            "steps": 1302234,
+            "file_path": "results\\mulitagent_03_onBackToBasic01v1_v8\\DoubleAgent.onnx",
+            "reward": -2.1699056161301478,
+            "creation_time": 1773773287.6188533,
+            "auxillary_file_paths": [
+                "results\\mulitagent_03_onBackToBasic01v1_v8\\DoubleAgent\\DoubleAgent-1302234.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "1.7.1+cu110"
+    }
+}
