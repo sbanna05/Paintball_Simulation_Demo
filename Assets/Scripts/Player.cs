@@ -172,10 +172,12 @@ public class Player : Agent
                 if (!iCanSeeEnemy)
                 {
                     AddReward(0.001f);
+                  //  opponentAgent.AddReward(-0.001f);
                 }
                 else
                 {
                     AddReward(-0.001f);
+                    //opponentAgent.AddReward(0.001f);
                 }
             }
             else if (currentMode == AgentMode.Offensive)
@@ -183,6 +185,7 @@ public class Player : Agent
                 if (iCanSeeEnemy)
                 {
                     AddReward(0.001f);
+                   // opponentAgent.AddReward(-0.001f);
                 }
             }
         }
@@ -246,12 +249,12 @@ public class Player : Agent
         }
         else if (tag == "NearMiss")
         {
-            AddReward(0.05f);
+            AddReward(0.1f);
         }
-        /*else 
+        else 
         {
             AddReward(-0.05f);
-        }*/
+        }
     }
 
     public void OnNearMissDetected()
@@ -298,8 +301,8 @@ public class Player : Agent
         float killBonus = 1f;
 
         if (dist > 3f && dist < 18f)
-        { 
-            killBonus = 5f;
+        {
+            killBonus = 6f;
             Debug.Log($"<color=red>[{killer.gameObject.name}] TACTICAL KILL! Reward: +{killBonus:F1} (Dist: {dist:F1}m) {killer.shotsFired}/{killer.totalNearMisses}</color>");
         }
         else if (dist >= 18){
