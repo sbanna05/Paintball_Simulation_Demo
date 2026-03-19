@@ -156,8 +156,8 @@ public class Player : Agent
 
             if (dist < 3f)
             {
-                AddReward(-3.0f);
-                opponentAgent.AddReward(-3.0f);
+                AddReward(-4.0f);
+                opponentAgent.AddReward(-4.0f);
                 Debug.Log($"<color=yellow>Too close ({dist:F1}m). Both reset.</color>");
 
                 opponentAgent.EndEpisode();
@@ -186,6 +186,11 @@ public class Player : Agent
                 {
                     AddReward(0.001f);
                    // opponentAgent.AddReward(-0.001f);
+                }
+                else
+                {
+                    AddReward(-0.001f);
+                    //opponentAgent.AddReward(0.001f);
                 }
             }
         }
@@ -249,12 +254,12 @@ public class Player : Agent
         }
         else if (tag == "NearMiss")
         {
-            AddReward(0.1f);
+            AddReward(0.8f);
         }
-        else 
+        /*else 
         {
             AddReward(-0.05f);
-        }
+        }*/
     }
 
     public void OnNearMissDetected()
@@ -278,15 +283,27 @@ public class Player : Agent
         stressCounter += 2;
 
         CurrentHealth -= damage;
-
+        float dist = Vector3.Distance(transform.position, attacker.transform.position);
         if (CurrentHealth > 0)
         {
-            float hitReward = 2f;
+            float hitReward = 1f;
+            if (dist > 3f && dist < 15f)
+            {
+                hitReward = 3f;
+            }
+            else if (dist >= 15f && dist < 20f)
+            {
+                hitReward = 5f;
+            }
+            else if (dist >= 20)
+            {
+                hitReward = 8f;
+            }
 
-            this.AddReward(-hitReward);
+            this.AddReward(-hitReward / 2f);
             attacker.AddReward(hitReward);
 
-            float dist = Vector3.Distance(transform.position, attacker.transform.position);
+            
             Debug.Log($"<color=white>[{attacker.gameObject.name}] HIT! (Dist: {dist:F1}m)</color>");
         }
 
@@ -311,7 +328,7 @@ public class Player : Agent
         }
 
         killer.AddReward(killBonus);
-        this.AddReward(-killBonus);
+        this.AddReward(-killBonus /2f);
 
         killer.EndEpisode();
         EndEpisode();
