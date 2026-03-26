@@ -4,31 +4,31 @@ behaviors:
     hyperparameters:
       batch_size: 1024
       buffer_size: 20480
-      learning_rate: 0.0001
-      beta: 0.02
-      epsilon: 0.2
+      learning_rate: 0.0002
+      beta: 0.015
+      epsilon: 0.15
       lambd: 0.95
       num_epoch: 3
     network_settings:
       normalize: true
       hidden_units: 256
-      num_layers: 2
+      num_layers: 3
     reward_signals:
       extrinsic:
         gamma: 0.99
         strength: 1.0
-      curiosity:
-        gamma: 0.99
-        strength: 0.2
-        encoding_size: 128
+     # curiosity:
+       # gamma: 0.99
+        #strength: 0.2
+        #encoding_size: 128
     self_play:
-      window: 15
-      play_against_latest_model_ratio: 0.4
+      window: 12
+      play_against_latest_model_ratio: 0.6
       save_steps: 40000
       swap_steps: 20000
       team_change: 100000
     max_steps: 4000000
-    time_horizon: 512
+    time_horizon: 256
     summary_freq: 10000
     checkpoint_interval: 100000
     keep_checkpoints: 5
