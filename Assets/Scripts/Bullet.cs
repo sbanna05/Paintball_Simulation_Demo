@@ -7,7 +7,7 @@ public class Bullet : MonoBehaviour
     [SerializeField] private LayerMask hitLayers;
 
     private Rigidbody bulletRigidBody;
-    private float bulletSpeed = 60f;
+    private float bulletSpeed = 80f;
     private float damage = 50f;
     private bool hitOnce;
     private bool nearMissRegistered = false;

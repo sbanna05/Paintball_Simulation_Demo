@@ -11,8 +11,8 @@ public class Player : Agent
     public enum AgentMode { Offensive, Defensive }
 
     [Header("Movement Settings")]
-    public float moveSpeed = 6f;
-    public float sprintMultiplier = 2f;
+    public float moveSpeed = 8f;
+    public float sprintMultiplier = 3f;
     public float turnSpeed = 120f;
 
     [Header("Combat Settings")]
@@ -23,6 +23,7 @@ public class Player : Agent
     [Header("Cover Settings")]
     [SerializeField] private LayerMask coverLayerMask;
     public float distance;
+    public bool shotFired;
 
     [Header("References")]
     [SerializeField] private Player opponentAgent;
@@ -73,6 +74,7 @@ public class Player : Agent
         shotsFired = 0;
         stressCounter = 0;
         totalNearMisses = 0;
+        shotFired = false;
 
         isUnderFire = false;
         underFireTimer = 0f;
@@ -129,7 +131,7 @@ public class Player : Agent
         _controller.SimpleMove(move * speed);
         transform.Rotate(Vector3.up, rotateX * turnSpeed * Time.deltaTime);
 
-        _lookYOffset = Mathf.Clamp(_lookYOffset + (lookYInput * Time.deltaTime * 2f), -2f, 4f);
+        _lookYOffset = Mathf.Clamp(_lookYOffset + (lookYInput * Time.deltaTime * 10f), -2f, 4f);
 
         if (_anim)
         {
@@ -142,7 +144,8 @@ public class Player : Agent
 
         if (isAiming && shootCommand)
         {
-            if (_shooter.Shoot(aimTarget))
+            shotFired = _shooter.Shoot(aimTarget); 
+            if (shotFired)
             {
                 AddReward(-0.01f);
                 shotsFired++;
@@ -150,14 +153,14 @@ public class Player : Agent
         }
 
         UpdateAgentMode();
-        AddReward(-0.0008f);
+        AddReward(-0.0002f);
 
         distance = Vector3.Distance(transform.position, opponentAgent.transform.position);
         if (opponentAgent != null)
         {
             if (distance < 3f)
             {
-                AddReward(-0.02f);
+                AddReward(-0.005f);
                 /*float proximityPenalty = Mathf.Pow((3f - distance), 2);
                 AddReward(-0.03f * proximityPenalty);*/
             }
@@ -170,32 +173,37 @@ public class Player : Agent
             float optimalDist = Mathf.Abs(distance - 10f);
             //AddReward(-optimalDist * 0.0005f);
 
-            if (currentMode == AgentMode.Defensive)
+            if (distance >= 5f && distance < 30f)
             {
-                if (!iCanSeeEnemy)
-                    AddReward(0.002f);
-                else
-                    AddReward(-0.002f);
-            }
-            else if (currentMode == AgentMode.Offensive)
-            {
-                if (iCanSeeEnemy)
-                    AddReward(0.002f);
-                else AddReward(-0.002f);
-           
-            }
+                if (currentMode == AgentMode.Defensive)
+                {
+                    if (!iCanSeeEnemy)
+                        AddReward(0.001f);
+                    else
+                        AddReward(-0.001f);
+                }
+                else if (currentMode == AgentMode.Offensive)
+                {
+                    if (iCanSeeEnemy)
+                        AddReward(0.001f);
+                    else AddReward(-0.001f);
 
-            if(iCanSeeEnemy && _shooter.Shoot(aimTarget) && gunAlignment > 0.8)
-                 AddReward(0.001f);
+                }
+            }
+            if(iCanSeeEnemy && shotFired && gunAlignment > 0.8)
+                 AddReward(0.02f);
 
-            if (isAiming)
-                AddReward(0.001f * gunAlignment);
+            /*if (isAiming)
+                AddReward(0.001f * gunAlignment);*/
         }        
 
         if (episodeTimer >= maxEpisodeTime)
         {
-            //AddReward(-3f);
-            Debug.Log($"[{gameObject.name}] TIMEOUT - Shots: {shotsFired}/{totalNearMisses}");
+            //AddReward(-1f);
+            if (currentMode == AgentMode.Defensive) AddReward(1f);
+            else AddReward(-1f);
+            Debug.Log($"[{gameObject.name}] TIMEOUT - Shots: {shotsFired}/{totalNearMisses} Mode: {currentMode}");
+            
             EndEpisode();
         }
     }
@@ -251,7 +259,7 @@ public class Player : Agent
         }
         else if (tag == "NearMiss")
         {
-            AddReward(0.1f);
+            AddReward(0.2f);
         }
         /*else
         {
@@ -267,7 +275,7 @@ public class Player : Agent
         underFireTimer = 3.0f;
         stressCounter++;
         totalNearMisses++;
-        AddReward(-0.05f);
+        AddReward(-0.1f);
     }
 
     public void TakeDamage(float damage, Player attacker)
@@ -279,10 +287,10 @@ public class Player : Agent
         stressCounter += 2;
 
         float baseReward = 2.0f;
-        float hitReward = 0f;
+        float hitReward = 1f;
 
-        float distanceBonus = Mathf.Clamp((distance - 3f) / 10f, 0f, 5f);
-        hitReward = distanceBonus > 1.0f ? baseReward * distanceBonus : baseReward;
+        float distanceBonus = Mathf.Clamp((distance - 3f) / 8f, 0f, 6f);
+        hitReward = distanceBonus > 1.0f ? baseReward + 1f * distanceBonus : baseReward;
 
         attacker.AddReward(hitReward);
         AddReward(-hitReward);
@@ -296,24 +304,25 @@ public class Player : Agent
 
     private void Die(Player killer)
     {
-        AddReward(-4.0f);
+        //AddReward(-4.0f);
 
         Debug.Log($"[{gameObject.name}] DIED. Shots: {shotsFired} / {totalNearMisses}");
 
-        float killBonus = 5.0f + Mathf.Clamp(distance / 5f, 0f, 10.0f);
+        float killBonus = 3.0f + Mathf.Clamp(distance / 8f, 0f, 5f);
 
         if (killer != null)
         {
             //float distance = Vector3.Distance(transform.position, killer.transform.position);
             if (distance > 3f && distance < 40f)
             {
-                killer.AddReward(5f + (distance / 10f));
+               /* killer.AddReward(6f + (distance / 10f));
+                this.AddReward(-1f * (4f + (distance / 10f)));*/
                 //killBonus = 6f + (distance / 10f);
                 Debug.Log($"<color=red>[{killer.gameObject.name}] KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
             }
             else if (distance >= 40)
             {
-                killer.AddReward(12f);
+                killBonus = 15f;
                 //killBonus = 15f;
                 Debug.Log($"<color=red>[{killer.gameObject.name}]Far KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
             }
@@ -324,8 +333,8 @@ public class Player : Agent
             }
         }
 
-       /* killer.AddReward(killBonus);
-        AddReward(-killBonus);*/
+        killer.AddReward(killBonus);
+        AddReward(-killBonus/2f);
 
         killer.EndEpisode();
         EndEpisode();
