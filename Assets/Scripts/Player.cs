@@ -142,6 +142,7 @@ public class Player : Agent
 
         _shooter.SetAimState(isAiming, aimTarget, _lookYOffset);
 
+        bool iCanSeeEnemy = CheckLineOfSight();
         if (isAiming && shootCommand)
         {
             shotFired = _shooter.Shoot(aimTarget); 
@@ -149,11 +150,13 @@ public class Player : Agent
             {
                 AddReward(-0.01f);
                 shotsFired++;
+
+                if (!iCanSeeEnemy) AddReward(-0.005f);
             }
         }
 
         UpdateAgentMode();
-        AddReward(-0.0002f);
+        AddReward(-0.0005f);
 
         if (opponentAgent != null)
         {
@@ -165,10 +168,9 @@ public class Player : Agent
             }*/
 
             if (distance < 3f)
-             {
+            {
                 AddReward(-0.008f);
             }
-            bool iCanSeeEnemy = CheckLineOfSight();
 
             Vector3 toEnemy = (opponentAgent.transform.position - transform.position).normalized;
             float gunAlignment = Vector3.Dot(_shooter.gunBarrel.forward, toEnemy);
@@ -181,21 +183,23 @@ public class Player : Agent
             */
             if (currentMode == AgentMode.Defensive)
             {
-                if (!iCanSeeEnemy && IsInCover())
+                if (!iCanSeeEnemy && IsInCover()) {
+                    stressCounter = 0;
                     AddReward(0.001f);
-                else AddReward(-0.001f);
+                }
+                else AddReward(-0.0005f);
             }
             
             else if (currentMode == AgentMode.Offensive)
             {
                 if (iCanSeeEnemy)
                     AddReward(0.001f);
-                else AddReward(-0.001f);
+                else AddReward(-0.0005f);
 
             }
 
             if (iCanSeeEnemy && shotFired && gunAlignment > 0.8)
-                AddReward(0.01f);
+                AddReward(0.02f);
 
             /*if (isAiming)
                 AddReward(0.001f * gunAlignment);*/
@@ -204,8 +208,8 @@ public class Player : Agent
         if (episodeTimer >= maxEpisodeTime)
         {
             //AddReward(-1f);
-            if (currentMode == AgentMode.Defensive) AddReward(1f);
-            //else AddReward(-1f);
+            /*if (currentMode == AgentMode.Defensive) { AddReward(1f); }
+            else AddReward(-1f);*/
             Debug.Log($"[{gameObject.name}] TIMEOUT - Shots: {shotsFired}/{totalNearMisses} Mode: {currentMode}");
             
             EndEpisode();
@@ -242,7 +246,7 @@ public class Player : Agent
     private void UpdateAgentMode()
     {
         bool lowHealth = CurrentHealth <= maxHealth * 0.5f;
-        bool suppressed = isUnderFire && stressCounter > 3;
+        bool suppressed = isUnderFire && stressCounter > 2;
 
         if (lowHealth || suppressed)
                 currentMode = AgentMode.Defensive;
@@ -267,7 +271,7 @@ public class Player : Agent
             }
             else
             {
-                AddReward(2f);
+                AddReward(5f);
                 Debug.Log($"<color=cyan>[{gameObject.name}] Sniper hit! ({distance:F1}m) </color>");
             }
         }
@@ -320,7 +324,7 @@ public class Player : Agent
     private void Die(Player killer)
     {
         AddReward(-2.0f);
-        killer.AddReward(2f);
+        killer.AddReward(4f);
         Debug.Log($"[{gameObject.name}] DIED. Shots: {shotsFired} / {totalNearMisses}");
 
         

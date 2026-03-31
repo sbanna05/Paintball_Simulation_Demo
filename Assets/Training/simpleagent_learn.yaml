@@ -5,8 +5,8 @@ behaviors:
       batch_size: 1024
       buffer_size: 20480
       learning_rate: 0.0002
-      beta: 0.001
-      epsilon: 0.15
+      beta: 0.0025
+      epsilon: 0.18
       lambd: 0.95
       num_epoch: 3
     network_settings:
@@ -26,11 +26,11 @@ behaviors:
       play_against_latest_model_ratio: 0.6
       save_steps: 40000
       swap_steps: 20000
-      team_change: 100000
+      team_change: 200000
     max_steps: 4000000
     time_horizon: 256
     summary_freq: 10000
     checkpoint_interval: 100000
     keep_checkpoints: 5
-    threaded: true
+    threaded: false
     
