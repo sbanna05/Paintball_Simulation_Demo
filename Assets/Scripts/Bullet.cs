@@ -8,7 +8,7 @@ public class Bullet : MonoBehaviour
 
     private Rigidbody bulletRigidBody;
     private float bulletSpeed = 80f;
-    private float damage = 50f;
+    private float damage = 100f;
     private bool hitOnce;
     private bool nearMissRegistered = false;
     private Player ownerAgent;

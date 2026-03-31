@@ -47,7 +47,7 @@ public class Player : Agent
     private bool isUnderFire = false;
     private float underFireTimer = 0f;
 
-    private float maxEpisodeTime = 100f;
+    private float maxEpisodeTime = 80f;
     private float episodeTimer;
     private string targetTag = "Player";
 
@@ -155,53 +155,57 @@ public class Player : Agent
         UpdateAgentMode();
         AddReward(-0.0002f);
 
-        distance = Vector3.Distance(transform.position, opponentAgent.transform.position);
         if (opponentAgent != null)
         {
-            if (distance < 3f)
+            // JAVÍTÁS #1: BODY ALIGNMENT REWARD
+            /*float bodyDot = Vector3.Dot(transform.forward, toEnemy);
+            if (bodyDot > 0.8f)
             {
-                AddReward(-0.005f);
-                /*float proximityPenalty = Mathf.Pow((3f - distance), 2);
-                AddReward(-0.03f * proximityPenalty);*/
-            }
+                AddReward((bodyDot - 0.8f) * 0.004f);
+            }*/
 
+            if (distance < 3f)
+             {
+                AddReward(-0.008f);
+            }
             bool iCanSeeEnemy = CheckLineOfSight();
 
             Vector3 toEnemy = (opponentAgent.transform.position - transform.position).normalized;
             float gunAlignment = Vector3.Dot(_shooter.gunBarrel.forward, toEnemy);
-            
-            float optimalDist = Mathf.Abs(distance - 10f);
-            //AddReward(-optimalDist * 0.0005f);
 
-            if (distance >= 5f && distance < 30f)
+            /*if (distance >= 8f && distance <= 20f)
             {
-                if (currentMode == AgentMode.Defensive)
-                {
-                    if (!iCanSeeEnemy)
-                        AddReward(0.001f);
-                    else
-                        AddReward(-0.001f);
-                }
-                else if (currentMode == AgentMode.Offensive)
-                {
-                    if (iCanSeeEnemy)
-                        AddReward(0.001f);
-                    else AddReward(-0.001f);
-
-                }
+                float optimalness = 1f - Mathf.Abs(distance - 12f) / 8f;
+                AddReward(0.005f * optimalness);
             }
-            if(iCanSeeEnemy && shotFired && gunAlignment > 0.8)
-                 AddReward(0.02f);
+            */
+            if (currentMode == AgentMode.Defensive)
+            {
+                if (!iCanSeeEnemy && IsInCover())
+                    AddReward(0.001f);
+                else AddReward(-0.001f);
+            }
+            
+            else if (currentMode == AgentMode.Offensive)
+            {
+                if (iCanSeeEnemy)
+                    AddReward(0.001f);
+                else AddReward(-0.001f);
+
+            }
+
+            if (iCanSeeEnemy && shotFired && gunAlignment > 0.8)
+                AddReward(0.01f);
 
             /*if (isAiming)
                 AddReward(0.001f * gunAlignment);*/
-        }        
+        }
 
         if (episodeTimer >= maxEpisodeTime)
         {
             //AddReward(-1f);
             if (currentMode == AgentMode.Defensive) AddReward(1f);
-            else AddReward(-1f);
+            //else AddReward(-1f);
             Debug.Log($"[{gameObject.name}] TIMEOUT - Shots: {shotsFired}/{totalNearMisses} Mode: {currentMode}");
             
             EndEpisode();
@@ -234,7 +238,7 @@ public class Player : Agent
 
         sensor.AddObservation(CheckLineOfSight() ? 1f : 0f);
     }
-
+    
     private void UpdateAgentMode()
     {
         bool lowHealth = CurrentHealth <= maxHealth * 0.5f;
@@ -251,20 +255,30 @@ public class Player : Agent
         if (_isSpawning) return;
         if (tag == targetTag)
         {
-            if (distance >= 40f)
+            if (distance < 3f)
             {
-                AddReward(5f);
+                //AddReward(0.1f);
+                Debug.Log($"<color=yellow>[{gameObject.name}] Too Close! ({distance:F1}m) </color>");
+            }
+            else if (distance >= 3f && distance < 20f)
+            {               
+
+                Debug.Log($"<color=green>[{gameObject.name}] HIT!</color> Dist: {distance:F1}m");
+            }
+            else
+            {
+                AddReward(2f);
                 Debug.Log($"<color=cyan>[{gameObject.name}] Sniper hit! ({distance:F1}m) </color>");
             }
         }
         else if (tag == "NearMiss")
         {
-            AddReward(0.2f);
+            AddReward(0.1f);
         }
-        /*else
+        else
         {
-            AddReward(-0.05f);
-        }*/
+            AddReward(-0.005f);
+        }
     }
 
     public void OnNearMissDetected()
@@ -275,7 +289,7 @@ public class Player : Agent
         underFireTimer = 3.0f;
         stressCounter++;
         totalNearMisses++;
-        AddReward(-0.1f);
+        AddReward(-0.05f);
     }
 
     public void TakeDamage(float damage, Player attacker)
@@ -290,13 +304,14 @@ public class Player : Agent
         float hitReward = 1f;
 
         float distanceBonus = Mathf.Clamp((distance - 3f) / 8f, 0f, 6f);
-        hitReward = distanceBonus > 1.0f ? baseReward + 1f * distanceBonus : baseReward;
+        if (distance >3f)  hitReward = distanceBonus > 1.0f ? baseReward + 1f * distanceBonus : baseReward;
 
         attacker.AddReward(hitReward);
         AddReward(-hitReward);
 
         Debug.Log($"<color=white>[{attacker.gameObject.name}] HIT! (Dist: {distance:F1}m, +{hitReward:F2})</color>");
         CurrentHealth -= damage;
+        //AddReward(-0.5f);
 
         if (CurrentHealth <= 0)
             Die(attacker);
@@ -304,26 +319,19 @@ public class Player : Agent
 
     private void Die(Player killer)
     {
-        //AddReward(-4.0f);
-
+        AddReward(-2.0f);
+        killer.AddReward(2f);
         Debug.Log($"[{gameObject.name}] DIED. Shots: {shotsFired} / {totalNearMisses}");
 
-        float killBonus = 3.0f + Mathf.Clamp(distance / 8f, 0f, 5f);
-
-        if (killer != null)
-        {
-            //float distance = Vector3.Distance(transform.position, killer.transform.position);
-            if (distance > 3f && distance < 40f)
+        
+            if (distance > 3f && distance < 20f)
             {
-               /* killer.AddReward(6f + (distance / 10f));
-                this.AddReward(-1f * (4f + (distance / 10f)));*/
-                //killBonus = 6f + (distance / 10f);
+                //killer.AddReward(5f + (distance / 10f));
                 Debug.Log($"<color=red>[{killer.gameObject.name}] KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
             }
-            else if (distance >= 40)
+            else if (distance >= 20)
             {
-                killBonus = 15f;
-                //killBonus = 15f;
+                //killer.AddReward(10f);
                 Debug.Log($"<color=red>[{killer.gameObject.name}]Far KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
             }
             else
@@ -331,41 +339,49 @@ public class Player : Agent
                 //killer.AddReward(0.5f);
                 Debug.Log($"<color=orange>{killer.gameObject.name}] CLOSE RANGE KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
             }
-        }
-
-        killer.AddReward(killBonus);
-        AddReward(-killBonus/2f);
 
         killer.EndEpisode();
+
         EndEpisode();
     }
 
-    private bool CheckLineOfSight()
-    {
-        if (opponentAgent == null) return false;
-
-        Vector3 origin = transform.position + Vector3.up * 1.5f;
-        Vector3 target = opponentAgent.transform.position + Vector3.up * 1.5f;
-        Vector3 dir = target - origin;
-        float rayDistance = dir.magnitude;
-        dir.Normalize();
-
-        float angle = Vector3.Angle(transform.forward, dir);
-        if (angle > 60f)
-            return false;
-
-        if (Physics.Raycast(origin, dir, out RaycastHit hit, rayDistance, coverLayerMask))
+        private bool CheckLineOfSight()
         {
-            Debug.DrawRay(origin, dir * hit.distance, Color.magenta);
-            if (hit.collider.gameObject == opponentAgent.gameObject || hit.collider.transform.IsChildOf(opponentAgent.transform))
-            {
-                //Debug.Log($"ray to: {hit.collider.gameObject.name}");
-                return true;
-            }
-        }
-        return false;
-    }
+            if (opponentAgent == null) return false;
 
+            Vector3 origin = transform.position + Vector3.up * 1.5f;
+            Vector3 target = opponentAgent.transform.position + Vector3.up * 1.5f;
+            Vector3 dir = target - origin;
+            float rayDistance = dir.magnitude;
+            dir.Normalize();
+
+            float angle = Vector3.Angle(transform.forward, dir);
+            if (angle > 70f)
+                return false;
+
+            if (Physics.Raycast(origin, dir, out RaycastHit hit, rayDistance, coverLayerMask))
+            {
+                Debug.DrawRay(origin, dir * hit.distance, Color.magenta);
+                if (hit.collider.gameObject == opponentAgent.gameObject || hit.collider.transform.IsChildOf(opponentAgent.transform))
+                {
+                    //Debug.Log($"ray to: {hit.collider.gameObject.name}");
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private bool IsInCover()
+        {
+            Vector3 origin = transform.position + Vector3.up * 1.5f;
+            Vector3 dir = (opponentAgent.transform.position - origin).normalized;
+
+            if (Physics.Raycast(origin, dir, 60f, coverLayerMask))
+                return true;
+
+            return false;
+        }
+    
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         var cont = actionsOut.ContinuousActions;

@@ -5,7 +5,7 @@ behaviors:
       batch_size: 1024
       buffer_size: 20480
       learning_rate: 0.0002
-      beta: 0.015
+      beta: 0.001
       epsilon: 0.15
       lambd: 0.95
       num_epoch: 3
