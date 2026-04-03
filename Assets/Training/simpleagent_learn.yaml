@@ -3,10 +3,10 @@ behaviors:
     trainer_type: ppo
     hyperparameters:
       batch_size: 1024
-      buffer_size: 20480
-      learning_rate: 0.0002
-      beta: 0.0025
-      epsilon: 0.18
+      buffer_size: 40960
+      learning_rate: 0.00015
+      beta: 0.008
+      epsilon: 0.22
       lambd: 0.95
       num_epoch: 3
     network_settings:
@@ -17,10 +17,10 @@ behaviors:
       extrinsic:
         gamma: 0.99
         strength: 1.0
-     # curiosity:
-       # gamma: 0.99
-        #strength: 0.2
-        #encoding_size: 128
+      curiosity:
+        gamma: 0.99
+        strength: 0.15
+        encoding_size: 128
     self_play:
       window: 12
       play_against_latest_model_ratio: 0.6
