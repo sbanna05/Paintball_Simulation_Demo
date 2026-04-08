@@ -169,10 +169,10 @@ public class Player : Agent
                 AddReward((bodyDot - 0.8f) * 0.004f);
             }*/
 
-            if (distance < 3f)
+            /*if (distance < 3f)
             {
                 AddReward(-0.02f);
-            }
+            }*/
 
             Vector3 toEnemy = (opponentAgent.transform.position - transform.position).normalized;
             float gunAlignment = Vector3.Dot(_shooter.gunBarrel.forward, toEnemy);
@@ -192,7 +192,7 @@ public class Player : Agent
                         stressCounter = 0;
                         AddReward(0.0001f);
                     }
-                    else AddReward(-0.0001f);
+                    //else AddReward(-0.0001f);
                 }
 
                 else if (currentMode == AgentMode.Offensive)
@@ -280,7 +280,7 @@ public class Player : Agent
 
         UpdateAgentMode();
         AddReward(-0.05f);
-        opponentAgent.AddReward(0.1f);
+        opponentAgent.AddReward(0.05f);
     }
 
     public void TakeDamage(float damage, Player attacker)
@@ -293,10 +293,10 @@ public class Player : Agent
 
         UpdateAgentMode();
 
-        float baseReward = 3.0f;
+        float baseReward = 1.0f;
         float hitReward = 0f;
 
-        float distanceBonus = Mathf.Clamp((distance - 3f) / 8f, 0f, 8f);
+        float distanceBonus = Mathf.Clamp((distance - 3f) / 5f, 0f, 8f);
         if (distance > 3f)  hitReward = distanceBonus > 1.0f ? baseReward + 1f * distanceBonus : baseReward;
 
         attacker.AddReward(hitReward);
@@ -315,7 +315,7 @@ public class Player : Agent
         //AddReward(-4.0f);
         //killer.AddReward(6f);
         Debug.Log($"[{gameObject.name}] DIED. Shots: {shotsFired} / {totalNearMisses}");
-        float killReward = 6f;
+        float killReward = 3f;
 
         if (distance > 3f && distance < 35f)
         {
