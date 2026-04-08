@@ -3,10 +3,10 @@ behaviors:
     trainer_type: ppo
     hyperparameters:
       batch_size: 1024
-      buffer_size: 40960
-      learning_rate: 0.00015
-      beta: 0.008
-      epsilon: 0.22
+      buffer_size: 20480
+      learning_rate: 0.0002
+      beta: 0.0085
+      epsilon: 0.15
       lambd: 0.95
       num_epoch: 3
     network_settings:

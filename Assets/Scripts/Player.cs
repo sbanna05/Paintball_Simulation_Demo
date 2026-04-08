@@ -60,11 +60,11 @@ public class Player : Agent
         _rigBuilder = GetComponent<RigBuilder>();
         CurrentHealth = maxHealth;
 
-        if (opponentAgent == null && transform.parent != null)
+        /*if (opponentAgent == null && transform.parent != null)
         {
             Player[] agents = transform.parent.GetComponentsInChildren<Player>();
             foreach (var a in agents) if (a != this) { opponentAgent = a; break; }
-        }
+        }*/
     }
 
     public override void OnEpisodeBegin()
@@ -121,21 +121,21 @@ public class Player : Agent
 
         distance = Vector3.Distance(transform.position, opponentAgent.transform.position);
 
-        float moveForward = actions.ContinuousActions[0];
-        float moveSide = actions.ContinuousActions[1];
-        float rotateX = actions.ContinuousActions[2];
-        float lookYInput = actions.ContinuousActions[3];
+        float moveX = actions.ContinuousActions[0];
+        float moveZ = actions.ContinuousActions[1];
+        float lookX = actions.ContinuousActions[2];
+        float lookY = actions.ContinuousActions[3];
 
         bool isAiming = actions.DiscreteActions[0] == 1;
         bool shootCommand = actions.DiscreteActions[1] == 1;
         bool shouldSprint = actions.DiscreteActions[2] == 1;
 
         float speed = (shouldSprint && !isAiming) ? moveSpeed * sprintMultiplier : moveSpeed;
-        Vector3 move = transform.forward * moveForward + transform.right * moveSide;
+        Vector3 move = transform.forward * moveX + transform.right * moveZ;
         _controller.SimpleMove(move * speed);
-        transform.Rotate(Vector3.up, rotateX * turnSpeed * Time.deltaTime);
+        transform.Rotate(Vector3.up, lookX * turnSpeed * Time.deltaTime);
 
-        _lookYOffset = Mathf.Clamp(_lookYOffset + (lookYInput * Time.deltaTime * 10f), -2f, 4f);
+        _lookYOffset = Mathf.Clamp(_lookYOffset + (lookY * Time.deltaTime * 10f), -2f, 4f);
 
         if (_anim)
         {
@@ -152,13 +152,13 @@ public class Player : Agent
             shotFired = _shooter.Shoot(aimTarget); 
             if (shotFired)
             {
-                AddReward(-0.01f);
+                AddReward(-0.02f);
                 shotsFired++;
 
             }
         }
 
-        AddReward(-0.0005f);
+        AddReward(-0.0001f);
 
         if (opponentAgent != null)
         {
@@ -199,9 +199,19 @@ public class Player : Agent
                 {
                     if (iCanSeeEnemy && gunAlignment > 0.7f)
                         AddReward(0.0001f);
-                    //else AddReward(-0.0001f);
+                   // else AddReward(-0.0001f);
                 }
+                
+                /*if (currentMode == AgentMode.Defensive && iCanSeeEnemy && !IsInCover())
+                {
+                    AddReward(-0.0001f);
+                }
+                else if (currentMode == AgentMode.Offensive && !iCanSeeEnemy)
+                {
+                    AddReward(-0.0001f);
+                }*/
             }
+
             if (iCanSeeEnemy && shotFired && gunAlignment > 0.8)
                 AddReward(0.02f);
 
@@ -212,8 +222,8 @@ public class Player : Agent
         if (episodeTimer >= maxEpisodeTime)
         {
             //AddReward(-1f);
-            if (currentMode == AgentMode.Defensive) { AddReward(1f); }
-            else AddReward(-1f);
+            /*if (currentMode == AgentMode.Defensive) { AddReward(1f); }
+            else {AddReward(-1f);}*/
 
             Debug.Log($"[{gameObject.name}] TIMEOUT - Shots: {shotsFired}/{totalNearMisses} Mode: {currentMode}");
             
@@ -259,37 +269,6 @@ public class Player : Agent
             currentMode = AgentMode.Offensive;
     }
 
-    public void RegisterHit(string tag, GameObject hitObject)
-    {
-        if (_isSpawning) return;
-        if (tag == targetTag)
-        {
-            if (distance < 3f)
-            {
-                //AddReward(0.1f);
-                Debug.Log($"<color=yellow>[{gameObject.name}] Too Close! ({distance:F1}m) </color>");
-            }
-            else if (distance >= 3f && distance < 20f)
-            {               
-
-                Debug.Log($"<color=green>[{gameObject.name}] HIT!</color> Dist: {distance:F1}m");
-            }
-            else
-            {
-                AddReward(5f);
-                Debug.Log($"<color=cyan>[{gameObject.name}] Sniper hit! ({distance:F1}m) </color>");
-            }
-        }
-        else if (tag == "NearMiss")
-        {
-            AddReward(0.1f);
-        }
-        /*else
-        {
-            AddReward(-0.005f);
-        }*/
-    }
-
     public void OnNearMissDetected()
     {
         if (_isSpawning) return;
@@ -301,6 +280,7 @@ public class Player : Agent
 
         UpdateAgentMode();
         AddReward(-0.05f);
+        opponentAgent.AddReward(0.1f);
     }
 
     public void TakeDamage(float damage, Player attacker)
@@ -313,10 +293,10 @@ public class Player : Agent
 
         UpdateAgentMode();
 
-        float baseReward = 1.0f;
-        float hitReward = 0.2f;
+        float baseReward = 3.0f;
+        float hitReward = 0f;
 
-        float distanceBonus = Mathf.Clamp((distance - 3f) / 8f, 0f, 6f);
+        float distanceBonus = Mathf.Clamp((distance - 3f) / 8f, 0f, 8f);
         if (distance > 3f)  hitReward = distanceBonus > 1.0f ? baseReward + 1f * distanceBonus : baseReward;
 
         attacker.AddReward(hitReward);
@@ -335,25 +315,26 @@ public class Player : Agent
         //AddReward(-4.0f);
         //killer.AddReward(6f);
         Debug.Log($"[{gameObject.name}] DIED. Shots: {shotsFired} / {totalNearMisses}");
-        float killReward = 0.2f;
+        float killReward = 6f;
 
         if (distance > 3f && distance < 35f)
         {
-            killReward = 5f + (distance / 8f);
+           // killReward = 2f + (distance / 8f);
             Debug.Log($"<color=red>[{killer.gameObject.name}] KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
         }
         else if (distance >= 35)
         {
-            killReward = 10f;
+           // killReward = 8f;
             Debug.Log($"<color=red>[{killer.gameObject.name}]Far KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
         }
         else
         {
+            killReward = -1f;
             Debug.Log($"<color=orange>{killer.gameObject.name}] CLOSE RANGE KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
         }
 
         killer.AddReward(killReward);
-        AddReward(-killReward/2f);
+        AddReward(-killReward);
 
         killer.EndEpisode();
 

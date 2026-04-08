@@ -46,20 +46,17 @@ public class Bullet : MonoBehaviour
         if (other.CompareTag("NearMiss") && !nearMissRegistered)
         {
             nearMissRegistered = true;
-            ownerAgent.RegisterHit("NearMiss", other.gameObject);
             if (victim != null) victim.OnNearMissDetected();
             return;
         }
         if (other.CompareTag("Player") && !hitOnce)
         {
-            ownerAgent.RegisterHit("Player", other.gameObject);
             if (victim != null) victim.TakeDamage(damage, ownerAgent);
             hitOnce = true;
             Destroy(gameObject);
         }
         else if (!other.isTrigger && !hitOnce)
         {
-            ownerAgent.RegisterHit(other.tag, other.gameObject);
             Destroy(gameObject);
         }    
 
