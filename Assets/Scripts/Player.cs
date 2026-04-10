@@ -60,11 +60,6 @@ public class Player : Agent
         _rigBuilder = GetComponent<RigBuilder>();
         CurrentHealth = maxHealth;
 
-        /*if (opponentAgent == null && transform.parent != null)
-        {
-            Player[] agents = transform.parent.GetComponentsInChildren<Player>();
-            foreach (var a in agents) if (a != this) { opponentAgent = a; break; }
-        }*/
     }
 
     public override void OnEpisodeBegin()
@@ -158,7 +153,7 @@ public class Player : Agent
             }
         }
 
-        AddReward(-0.0001f);
+        AddReward(-0.0002f);
 
         if (opponentAgent != null)
         {
@@ -169,7 +164,7 @@ public class Player : Agent
                 AddReward((bodyDot - 0.8f) * 0.004f);
             }*/
 
-            /*if (distance < 3f)
+           /*if (distance < 3f)
             {
                 AddReward(-0.02f);
             }*/
@@ -192,14 +187,14 @@ public class Player : Agent
                         stressCounter = 0;
                         AddReward(0.0001f);
                     }
-                    //else AddReward(-0.0001f);
+                    else AddReward(-0.0001f);
                 }
 
                 else if (currentMode == AgentMode.Offensive)
                 {
                     if (iCanSeeEnemy && gunAlignment > 0.7f)
                         AddReward(0.0001f);
-                   // else AddReward(-0.0001f);
+                    else AddReward(-0.0001f);
                 }
                 
                 /*if (currentMode == AgentMode.Defensive && iCanSeeEnemy && !IsInCover())
@@ -222,8 +217,8 @@ public class Player : Agent
         if (episodeTimer >= maxEpisodeTime)
         {
             //AddReward(-1f);
-            /*if (currentMode == AgentMode.Defensive) { AddReward(1f); }
-            else {AddReward(-1f);}*/
+            if (currentMode == AgentMode.Defensive) { AddReward(1f); }
+            else {AddReward(-1f);}
 
             Debug.Log($"[{gameObject.name}] TIMEOUT - Shots: {shotsFired}/{totalNearMisses} Mode: {currentMode}");
             
@@ -293,7 +288,7 @@ public class Player : Agent
 
         UpdateAgentMode();
 
-        float baseReward = 1.0f;
+        float baseReward = 2.0f;
         float hitReward = 0f;
 
         float distanceBonus = Mathf.Clamp((distance - 3f) / 5f, 0f, 8f);
@@ -315,7 +310,7 @@ public class Player : Agent
         //AddReward(-4.0f);
         //killer.AddReward(6f);
         Debug.Log($"[{gameObject.name}] DIED. Shots: {shotsFired} / {totalNearMisses}");
-        float killReward = 3f;
+        float killReward = 4f;
 
         if (distance > 3f && distance < 35f)
         {
@@ -329,7 +324,7 @@ public class Player : Agent
         }
         else
         {
-            killReward = -1f;
+            killReward = 0f;
             Debug.Log($"<color=orange>{killer.gameObject.name}] CLOSE RANGE KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
         }
 
