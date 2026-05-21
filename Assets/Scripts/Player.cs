@@ -60,6 +60,8 @@ public class Player : Agent
         _rigBuilder = GetComponent<RigBuilder>();
         CurrentHealth = maxHealth;
 
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     public override void OnEpisodeBegin()
@@ -136,7 +138,7 @@ public class Player : Agent
         {
             float targetAnimSpeed = move.magnitude * (speed / moveSpeed);
             _anim.SetFloat("Speed", Mathf.Lerp(_anim.GetFloat("Speed"), targetAnimSpeed, Time.deltaTime * 10f));
-            _anim.SetFloat("MotionSpeed", 1f);
+            _anim.SetFloat("MotionSpeed", 2f);
         }
 
         _shooter.SetAimState(isAiming, aimTarget, _lookYOffset);
@@ -149,7 +151,6 @@ public class Player : Agent
             {
                 AddReward(-0.02f);
                 shotsFired++;
-
             }
         }
 
@@ -157,30 +158,17 @@ public class Player : Agent
 
         if (opponentAgent != null)
         {
-            // JAVÍTÁS #1: BODY ALIGNMENT REWARD
-            /*float bodyDot = Vector3.Dot(transform.forward, toEnemy);
-            if (bodyDot > 0.8f)
-            {
-                AddReward((bodyDot - 0.8f) * 0.004f);
-            }*/
-
-           /*if (distance < 3f)
-            {
+           if (distance < 3f)
+           {
                 AddReward(-0.02f);
-            }*/
+           }
 
             Vector3 toEnemy = (opponentAgent.transform.position - transform.position).normalized;
             float gunAlignment = Vector3.Dot(_shooter.gunBarrel.forward, toEnemy);
 
-            /*if (distance >= 8f && distance <= 20f)
-            {
-                float optimalness = 1f - Mathf.Abs(distance - 12f) / 8f;
-                AddReward(0.005f * optimalness);
-            }
-            */
             if (distance >= 3f && distance <= 35f)
             {
-                if (currentMode == AgentMode.Defensive)
+                /*if (currentMode == AgentMode.Defensive)
                 {
                     if (!iCanSeeEnemy && IsInCover())
                     {
@@ -195,23 +183,20 @@ public class Player : Agent
                     if (iCanSeeEnemy && gunAlignment > 0.7f)
                         AddReward(0.0001f);
                     else AddReward(-0.0001f);
-                }
+                }*/
                 
-                /*if (currentMode == AgentMode.Defensive && iCanSeeEnemy && !IsInCover())
+                if (currentMode == AgentMode.Defensive && iCanSeeEnemy && !IsInCover())
                 {
                     AddReward(-0.0001f);
                 }
                 else if (currentMode == AgentMode.Offensive && !iCanSeeEnemy)
                 {
                     AddReward(-0.0001f);
-                }*/
+                }
             }
 
             if (iCanSeeEnemy && shotFired && gunAlignment > 0.8)
-                AddReward(0.02f);
-
-            /*if (isAiming)
-                AddReward(0.001f * gunAlignment);*/
+                AddReward(0.04f);
         }
 
         if (episodeTimer >= maxEpisodeTime)
@@ -299,7 +284,6 @@ public class Player : Agent
 
         Debug.Log($"<color=white>[{attacker.gameObject.name}] HIT! (Dist: {distance:F1}m, +{hitReward:F2})</color>");
         CurrentHealth -= damage;
-        //AddReward(-0.5f);
 
         if (CurrentHealth <= 0)
             Die(attacker);
@@ -307,19 +291,15 @@ public class Player : Agent
 
     private void Die(Player killer)
     {
-        //AddReward(-4.0f);
-        //killer.AddReward(6f);
         Debug.Log($"[{gameObject.name}] DIED. Shots: {shotsFired} / {totalNearMisses}");
         float killReward = 4f;
 
         if (distance > 3f && distance < 35f)
         {
-           // killReward = 2f + (distance / 8f);
             Debug.Log($"<color=red>[{killer.gameObject.name}] KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
         }
         else if (distance >= 35)
         {
-           // killReward = 8f;
             Debug.Log($"<color=red>[{killer.gameObject.name}]Far KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
         }
         else
@@ -330,11 +310,10 @@ public class Player : Agent
 
         killer.AddReward(killReward);
         AddReward(-killReward);
-
         killer.EndEpisode();
-
         EndEpisode();
     }
+    
 
     private bool CheckLineOfSight()
     {

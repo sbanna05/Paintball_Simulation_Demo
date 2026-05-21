@@ -64,8 +64,8 @@ public class Bullet : MonoBehaviour
         RaycastHit hit;
         if (Physics.Raycast(transform.position - direction * 0.5f, direction, out hit, 1f, hitLayers))
         {
-            /*SpawnSplat(
-                hitTarget ? vfxHitGreen : vfxHitRed,
+           /* SpawnSplat(
+                victim ? vfxHitGreen : vfxHitRed,
                 hit.point,
                 hit.normal,
                 other.transform
@@ -73,30 +73,26 @@ public class Bullet : MonoBehaviour
         }
         else
         {
-            Vector3 hitPoint = other.ClosestPoint(transform.position);
-            Vector3 hitNormal = (transform.position - hitPoint).normalized;
-
-          /*  SpawnSplat(
-                hitTarget ? vfxHitGreen : vfxHitRed,
-                hitPoint,
-                hitNormal,
-                other.transform
-            );*/
+           Vector3 hitPoint = other.ClosestPoint(transform.position);
+           Vector3 hitNormal = (transform.position - hitPoint).normalized;
+          /* SpawnSplat(
+              victim ? vfxHitGreen : vfxHitRed,
+              hitPoint,
+              hitNormal,
+              other.transform
+           );*/
         }
-
     }
 
     private void SpawnSplat(Transform prefab, Vector3 hitPoint, Vector3 hitNormal, Transform hitTransform)
     {
-       Quaternion rotation = Quaternion.LookRotation(-hitNormal);
-        Vector3 spawnPos = hitPoint + hitNormal * 0.002f;
+       Quaternion rotation = Quaternion.identity;
+        Vector3 spawnPos = hitPoint;
         Transform splat = Instantiate(prefab, spawnPos, rotation);
 
         if (hitTransform != null)
-        {
             splat.SetParent(hitTransform);
-        }
 
-        Destroy(splat.gameObject, 10f);
+        Destroy(splat.gameObject, 2f);
     }
 }

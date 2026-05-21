@@ -37,14 +37,10 @@ public class ShooterController : MonoBehaviour
 
             Vector3 targetPosition;
             if (Physics.Raycast(ray, out RaycastHit hit, 100f, aimMask))
-            {
                 targetPosition = hit.point;
-            }
             else
-            {
                 targetPosition = ray.origin + ray.direction * 50f;
-            }
-
+            
             targetPosition.y += lookYInput * 2f;
 
             aimTargetTransform.position = Vector3.Lerp(aimTargetTransform.position, targetPosition, Time.deltaTime * 30f);
@@ -56,7 +52,6 @@ public class ShooterController : MonoBehaviour
             aimTargetTransform.position = Vector3.Lerp(aimTargetTransform.position, defaultPos, Time.deltaTime * 10f);
         }
 
-        // Rig és Animátor frissítés
         float targetWeight = isAiming ? 1f : 0f;
         aimRig.weight = Mathf.Lerp(aimRig.weight, targetWeight, Time.deltaTime * 15f);
 
