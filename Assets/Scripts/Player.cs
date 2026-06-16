@@ -2,211 +2,367 @@
 using Unity.MLAgents;
 using Unity.MLAgents.Sensors;
 using Unity.MLAgents.Actuators;
-using StarterAssets;
 using System.Collections;
-using Unity.MLAgents.Policies;
 using UnityEngine.Animations.Rigging;
 
+[RequireComponent(typeof(CharacterController))]
 public class Player : Agent
 {
+    public enum AgentMode { Offensive, Defensive }
+
+    [Header("Movement Settings")]
+    public float moveSpeed = 8f;
+    public float sprintMultiplier = 3f;
+    public float turnSpeed = 120f;
+
+    [Header("Combat Settings")]
+    [SerializeField] private float maxHealth = 100f;
+    public float CurrentHealth { get; private set; }
+    public AgentMode currentMode = AgentMode.Offensive;
+
+    [Header("Cover Settings")]
+    [SerializeField] private LayerMask coverLayerMask;
+    public float distance;
+    public bool shotFired;
+
     [Header("References")]
+    [SerializeField] private Player opponentAgent;
     [SerializeField] private Transform aimTarget;
-    [SerializeField] private Transform enemyTarget; // A Dummy
     [SerializeField] private Transform[] agentSpawnPoints;
-    [SerializeField] private Transform[] enemySpawnPoints; // A Dummy spawn pontjai
 
-    private StarterAssetsInputs inputs;
-    private CharacterController characterController;
-    private ShooterController shooterController;
-    private RigBuilder rigBuilder;
-    private RayPerceptionSensorComponent3D raySensor;
-    private ThirdPersonController tpc;
+    private CharacterController _controller;
+    private ShooterController _shooter;
+    private Animator _anim;
+    private RigBuilder _rigBuilder;
+    private RayPerceptionSensorComponent3D _raySensor;
 
-    private float maxEpisodeTime = 100f; // Rövidített idő
+    private Vector3 previousPosition;
+    private Vector3 currentVelocity;
+    private bool _isSpawning = false;
+    private float _lookYOffset;
+    private int shotsFired;
+
+    public int stressCounter;
+    public int totalNearMisses;
+    private bool isUnderFire = false;
+    private float underFireTimer = 0f;
+
+    private float maxEpisodeTime = 80f;
     private float episodeTimer;
-    private bool isSpawning;
-    private string targetTag = "Enemy";
+    private string targetTag = "Player";
 
     public override void Initialize()
     {
-        inputs = GetComponent<StarterAssetsInputs>();
-        characterController = GetComponent<CharacterController>();
-        raySensor = GetComponent<RayPerceptionSensorComponent3D>();
-        shooterController = GetComponent<ShooterController>();
-        rigBuilder = GetComponent<RigBuilder>();
-        tpc = GetComponent<ThirdPersonController>();
+        _controller = GetComponent<CharacterController>();
+        _shooter = GetComponent<ShooterController>();
+        _anim = GetComponent<Animator>();
+        _raySensor = GetComponent<RayPerceptionSensorComponent3D>();
+        _rigBuilder = GetComponent<RigBuilder>();
+        CurrentHealth = maxHealth;
+
+        Cursor.lockState = CursorLockMode.Locked;
+        Cursor.visible = false;
     }
 
     public override void OnEpisodeBegin()
     {
         episodeTimer = 0f;
-        StartCoroutine(SafeSpawnWithDummy());
+        CurrentHealth = maxHealth;
+        shotsFired = 0;
+        stressCounter = 0;
+        totalNearMisses = 0;
+        shotFired = false;
+
+        isUnderFire = false;
+        underFireTimer = 0f;
+
+        if (Random.value > 0.7f)
+            currentMode = AgentMode.Defensive;
+        else
+            currentMode = AgentMode.Offensive;
+
+        StartCoroutine(ResetScene());
     }
 
-    private IEnumerator SafeSpawnWithDummy()
+    private IEnumerator ResetScene()
     {
-        isSpawning = true;
+        _isSpawning = true;
+        _controller.enabled = false;
+        _lookYOffset = 0;
 
-        // 1. Minden lekapcsolása (Critical for Burst)
-        if (tpc) tpc.enabled = false;
-        if (shooterController) shooterController.enabled = false;
-        if (rigBuilder) rigBuilder.enabled = false;
-        if (characterController) characterController.enabled = false;
-
-        // 2. Input reset
-        if (inputs) { 
-            inputs.move = Vector2.zero;
-            inputs.look = Vector2.zero;
-            inputs.aim = false;
-            inputs.jump = false;
-            inputs.shoot = false; 
-        }
-
-        yield return new WaitForFixedUpdate();
-
-        // 3. Player Teleport
-        if (agentSpawnPoints.Length > 0)
+        if (agentSpawnPoints != null && agentSpawnPoints.Length > 0)
         {
             int idx = Random.Range(0, agentSpawnPoints.Length);
             transform.SetPositionAndRotation(agentSpawnPoints[idx].position, agentSpawnPoints[idx].rotation);
         }
 
-        if (enemyTarget != null && enemySpawnPoints.Length > 0)
-        {
-            int enemyIdx = Random.Range(0, enemySpawnPoints.Length);
-            int attempts = 0;
-            while (Vector3.Distance(enemySpawnPoints[enemyIdx].position, transform.position) < 8f && attempts < 20)
-            {
-                enemyIdx = Random.Range(0, enemySpawnPoints.Length);
-                attempts++;
-            }
-            enemyTarget.SetPositionAndRotation(enemySpawnPoints[enemyIdx].position, enemySpawnPoints[enemyIdx].rotation);
-        }
-
-        // 5. Aim Target Reset
-        if (aimTarget) aimTarget.localPosition = new Vector3(0, 1.5f, 10f);
-
+        yield return new WaitForFixedUpdate();
         Physics.SyncTransforms();
-        yield return new WaitForSeconds(0.15f); // Biztonsági idő
 
-        // 6. Visszakapcsolás
-        if (characterController) characterController.enabled = true;
-        if (shooterController) shooterController.enabled = true;
-        if (rigBuilder) rigBuilder.enabled = true;
-        if (tpc) { tpc.enabled = true; }
-
-        isSpawning = false;
-    }
-
-    public override void CollectObservations(VectorSensor sensor)
-    {
-        sensor.AddObservation(transform.forward);
-
-        if (enemyTarget != null)
-        {
-            Vector3 toTarget = enemyTarget.position - transform.position;
-            sensor.AddObservation(toTarget.normalized);
-            sensor.AddObservation(toTarget.magnitude / 50f);
-
-            float dot = Vector3.Dot(transform.forward, toTarget.normalized);
-            sensor.AddObservation(dot);
-        }
-        else { sensor.AddObservation(Vector3.zero); sensor.AddObservation(0f); sensor.AddObservation(0f); }
-
-        if (aimTarget != null) sensor.AddObservation(aimTarget.localPosition.y / 5f);
-        else sensor.AddObservation(0f);
+        previousPosition = transform.position;
+        _controller.enabled = true;
+        _isSpawning = false;
     }
 
     public override void OnActionReceived(ActionBuffers actions)
     {
-        if (isSpawning) return;
+        if (_isSpawning) return;
+
         episodeTimer += Time.fixedDeltaTime;
+
+        if (underFireTimer > 0)
+        {
+            underFireTimer -= Time.fixedDeltaTime;
+            if (underFireTimer <= 0) { isUnderFire = false; stressCounter = 0; }
+        }
+
+        distance = Vector3.Distance(transform.position, opponentAgent.transform.position);
 
         float moveX = actions.ContinuousActions[0];
         float moveZ = actions.ContinuousActions[1];
         float lookX = actions.ContinuousActions[2];
         float lookY = actions.ContinuousActions[3];
 
-        bool shouldAim = actions.DiscreteActions[0] == 1;
-        bool shouldShoot = actions.DiscreteActions[1] == 1;
-        bool shouldJump = actions.DiscreteActions[2] == 1;
-        bool shouldSprint = actions.DiscreteActions[3] == 1;
+        bool isAiming = actions.DiscreteActions[0] == 1;
+        bool shootCommand = actions.DiscreteActions[1] == 1;
+        bool shouldSprint = actions.DiscreteActions[2] == 1;
 
-        if (inputs != null)
+        float speed = (shouldSprint && !isAiming) ? moveSpeed * sprintMultiplier : moveSpeed;
+        Vector3 move = transform.forward * moveX + transform.right * moveZ;
+        _controller.SimpleMove(move * speed);
+        transform.Rotate(Vector3.up, lookX * turnSpeed * Time.deltaTime);
+
+        _lookYOffset = Mathf.Clamp(_lookYOffset + (lookY * Time.deltaTime * 10f), -2f, 4f);
+
+        if (_anim)
         {
-            inputs.move = new Vector2(moveX, moveZ);
-            inputs.look = new Vector2(lookX, lookY);
-            inputs.aim = shouldAim;
-            inputs.shoot = shouldShoot;
-            inputs.jump = shouldJump && characterController.isGrounded;
-            inputs.sprint = shouldSprint;           
+            float targetAnimSpeed = move.magnitude * (speed / moveSpeed);
+            _anim.SetFloat("Speed", Mathf.Lerp(_anim.GetFloat("Speed"), targetAnimSpeed, Time.deltaTime * 10f));
+            _anim.SetFloat("MotionSpeed", 2f);
         }
 
-        AddReward(-0.0002f); 
+        _shooter.SetAimState(isAiming, aimTarget, _lookYOffset);
 
-        if (inputs.aim && enemyTarget != null)
+        bool iCanSeeEnemy = CheckLineOfSight();
+        if (isAiming && shootCommand)
         {
-            Vector3 toEnemy = (enemyTarget.position - transform.position).normalized;
-            float dot = Vector3.Dot(transform.forward, toEnemy);
-            if (dot > 0.96f) AddReward(0.01f);
+            shotFired = _shooter.Shoot(aimTarget); 
+            if (shotFired)
+            {
+                AddReward(-0.02f);
+                shotsFired++;
+            }
+        }
+
+        AddReward(-0.0002f);
+
+        if (opponentAgent != null)
+        {
+           if (distance < 3f)
+           {
+                AddReward(-0.02f);
+           }
+
+            Vector3 toEnemy = (opponentAgent.transform.position - transform.position).normalized;
+            float gunAlignment = Vector3.Dot(_shooter.gunBarrel.forward, toEnemy);
+
+            if (distance >= 3f && distance <= 35f)
+            {
+                /*if (currentMode == AgentMode.Defensive)
+                {
+                    if (!iCanSeeEnemy && IsInCover())
+                    {
+                        stressCounter = 0;
+                        AddReward(0.0001f);
+                    }
+                    else AddReward(-0.0001f);
+                }
+
+                else if (currentMode == AgentMode.Offensive)
+                {
+                    if (iCanSeeEnemy && gunAlignment > 0.7f)
+                        AddReward(0.0001f);
+                    else AddReward(-0.0001f);
+                }*/
+                
+                if (currentMode == AgentMode.Defensive && iCanSeeEnemy && !IsInCover())
+                {
+                    AddReward(-0.0001f);
+                }
+                else if (currentMode == AgentMode.Offensive && !iCanSeeEnemy)
+                {
+                    AddReward(-0.0001f);
+                }
+            }
+
+            if (iCanSeeEnemy && shotFired && gunAlignment > 0.8)
+                AddReward(0.04f);
         }
 
         if (episodeTimer >= maxEpisodeTime)
         {
-            AddReward(-5.0f);
-            Debug.Log("<color=red>timeout!</color>");
+            //AddReward(-1f);
+            if (currentMode == AgentMode.Defensive) { AddReward(1f); }
+            else {AddReward(-1f);}
+
+            Debug.Log($"[{gameObject.name}] TIMEOUT - Shots: {shotsFired}/{totalNearMisses} Mode: {currentMode}");
+            
             EndEpisode();
         }
     }
 
-    public void OnShotFired() => AddReward(-0.005f);
-
-    public void GetHit()
+    public override void CollectObservations(VectorSensor sensor)
     {
-        if (isSpawning) return;
-        AddReward(-25.0f);
-        Debug.Log(gameObject.name + ": <color=red>ELTALÁLTAK</color>");
-        EndEpisode();
+        sensor.AddObservation(transform.forward);
+
+        currentVelocity = (transform.position - previousPosition) / Time.fixedDeltaTime;
+        previousPosition = transform.position;
+        sensor.AddObservation(currentVelocity.magnitude / 10f);
+        sensor.AddObservation(CurrentHealth / maxHealth);
+
+        sensor.AddObservation(_shooter.CooldownProgress()); 
+        sensor.AddObservation(currentMode == AgentMode.Offensive ? 0f : 1f);
+
+        if (opponentAgent != null)
+        {
+            Vector3 toEnemy = opponentAgent.transform.position - transform.position;
+
+            sensor.AddObservation(transform.InverseTransformDirection(toEnemy.normalized));
+            sensor.AddObservation(Mathf.Clamp(distance / 50f, 0f, 1f));
+            sensor.AddObservation(transform.InverseTransformDirection(opponentAgent.transform.forward));
+
+            float gunAlignment = Vector3.Dot(_shooter.gunBarrel.forward, toEnemy.normalized);
+            sensor.AddObservation(gunAlignment);
+        }
+
+        sensor.AddObservation(CheckLineOfSight() ? 1f : 0f);
+    }
+    
+    private void UpdateAgentMode()
+    {
+        bool lowHealth = CurrentHealth <= maxHealth * 0.5f;
+        bool suppressed = isUnderFire && stressCounter > 2;
+
+        if (lowHealth || suppressed)
+                currentMode = AgentMode.Defensive;
+        else
+            currentMode = AgentMode.Offensive;
     }
 
-    public void RegisterHit(string tag, GameObject hitObject)
+    public void OnNearMissDetected()
     {
-        if (isSpawning) return;
+        if (_isSpawning) return;
 
-        if (tag == targetTag)
+        isUnderFire = true;
+        underFireTimer = 3.0f;
+        stressCounter++;
+        totalNearMisses++;
+
+        UpdateAgentMode();
+        AddReward(-0.05f);
+        opponentAgent.AddReward(0.05f);
+    }
+
+    public void TakeDamage(float damage, Player attacker)
+    {
+        if (_isSpawning || CurrentHealth <= 0) return;
+
+        isUnderFire = true;
+        underFireTimer = 3.0f;
+        stressCounter += 2;
+
+        UpdateAgentMode();
+
+        float baseReward = 2.0f;
+        float hitReward = 0f;
+
+        float distanceBonus = Mathf.Clamp((distance - 3f) / 5f, 0f, 8f);
+        if (distance > 3f)  hitReward = distanceBonus > 1.0f ? baseReward + 1f * distanceBonus : baseReward;
+
+        attacker.AddReward(hitReward);
+        AddReward(-hitReward);
+
+        Debug.Log($"<color=white>[{attacker.gameObject.name}] HIT! (Dist: {distance:F1}m, +{hitReward:F2})</color>");
+        CurrentHealth -= damage;
+
+        if (CurrentHealth <= 0)
+            Die(attacker);
+    }
+
+    private void Die(Player killer)
+    {
+        Debug.Log($"[{gameObject.name}] DIED. Shots: {shotsFired} / {totalNearMisses}");
+        float killReward = 4f;
+
+        if (distance > 3f && distance < 35f)
         {
-            AddReward(20.0f); // GYŐZELEM
-            Debug.Log("<color=green>DIRECT HIT!</color>");
-            EndEpisode();
+            Debug.Log($"<color=red>[{killer.gameObject.name}] KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
         }
-        else if (tag == "NearMiss")
+        else if (distance >= 35)
         {
-            if (hitObject.transform.root != transform)
-            {
-                AddReward(0.2f);
-                Debug.Log("<color=yellow>NEAR MISS!</color>");
-            }
+            Debug.Log($"<color=red>[{killer.gameObject.name}]Far KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
         }
         else
         {
-            AddReward(-0.05f);
+            killReward = 0f;
+            Debug.Log($"<color=orange>{killer.gameObject.name}] CLOSE RANGE KILL! ({killer.shotsFired} / {killer.totalNearMisses})</color>");
         }
+
+        killer.AddReward(killReward);
+        AddReward(-killReward);
+        killer.EndEpisode();
+        EndEpisode();
+    }
+    
+
+    private bool CheckLineOfSight()
+    {
+        if (opponentAgent == null) return false;
+
+        Vector3 origin = transform.position + Vector3.up * 1.5f;
+        Vector3 target = opponentAgent.transform.position + Vector3.up * 1.5f;
+        Vector3 dir = target - origin;
+        float rayDistance = dir.magnitude;
+        dir.Normalize();
+
+        float angle = Vector3.Angle(transform.forward, dir);
+        if (angle > 70f)
+            return false;
+
+        if (Physics.Raycast(origin, dir, out RaycastHit hit, rayDistance, coverLayerMask))
+        {
+            Debug.DrawRay(origin, dir * hit.distance, Color.magenta);
+            if (hit.collider.gameObject == opponentAgent.gameObject || hit.collider.transform.IsChildOf(opponentAgent.transform))
+            {
+                //Debug.Log($"ray to: {hit.collider.gameObject.name}");
+                return true;
+            }
+        }
+        return false;
     }
 
+    private bool IsInCover()
+    {
+        Vector3 origin = transform.position + Vector3.up * 1.5f;
+        Vector3 dir = (opponentAgent.transform.position - origin).normalized;
+
+        if (Physics.Raycast(origin, dir, 60f, coverLayerMask))
+            return true;
+
+        return false;
+    }
+    
     public override void Heuristic(in ActionBuffers actionsOut)
     {
         var cont = actionsOut.ContinuousActions;
-        cont[0] = Input.GetAxis("Horizontal");
-        cont[1] = Input.GetAxis("Vertical");
-        cont[2] = Input.GetAxis("Mouse X") * 10f;
-        cont[3] = Input.GetAxis("Mouse Y") *-10f; 
+        cont[0] = Input.GetAxis("Vertical");
+        cont[1] = Input.GetAxis("Horizontal");
+        cont[2] = Input.GetAxis("Mouse X");
+        cont[3] = Input.GetAxis("Mouse Y");
 
         var disc = actionsOut.DiscreteActions;
         disc[0] = Input.GetMouseButton(1) ? 1 : 0;
         disc[1] = Input.GetMouseButton(0) ? 1 : 0;
-        disc[2] = Input.GetKey(KeyCode.Space) ? 1 : 0;
-        disc[3] = Input.GetKey(KeyCode.LeftShift) ? 1 : 0;
+        disc[2] = Input.GetKey(KeyCode.LeftShift) ? 1 : 0;
     }
-
-    public bool IsHeuristic() => GetComponent<BehaviorParameters>().BehaviorType == BehaviorType.HeuristicOnly;
 }

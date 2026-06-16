@@ -1,0 +1,65 @@
+{
+    "BasicAgent": {
+        "checkpoints": [
+            {
+                "steps": 799997,
+                "file_path": "results\\basic_with_bc_more_rays_02_shoot_v7\\BasicAgent\\BasicAgent-799997.onnx",
+                "reward": 86.03474847321371,
+                "creation_time": 1769703676.1437373,
+                "auxillary_file_paths": [
+                    "results\\basic_with_bc_more_rays_02_shoot_v7\\BasicAgent\\BasicAgent-799997.pt"
+                ]
+            },
+            {
+                "steps": 899916,
+                "file_path": "results\\basic_with_bc_more_rays_02_shoot_v7\\BasicAgent\\BasicAgent-899916.onnx",
+                "reward": 87.36758568318388,
+                "creation_time": 1769704469.3220963,
+                "auxillary_file_paths": [
+                    "results\\basic_with_bc_more_rays_02_shoot_v7\\BasicAgent\\BasicAgent-899916.pt"
+                ]
+            },
+            {
+                "steps": 999999,
+                "file_path": "results\\basic_with_bc_more_rays_02_shoot_v7\\BasicAgent\\BasicAgent-999999.onnx",
+                "reward": 101.69410702753603,
+                "creation_time": 1769705211.568814,
+                "auxillary_file_paths": [
+                    "results\\basic_with_bc_more_rays_02_shoot_v7\\BasicAgent\\BasicAgent-999999.pt"
+                ]
+            },
+            {
+                "steps": 1099983,
+                "file_path": "results\\basic_with_bc_more_rays_02_shoot_v7\\BasicAgent\\BasicAgent-1099983.onnx",
+                "reward": 179.16345891157786,
+                "creation_time": 1769705966.488237,
+                "auxillary_file_paths": [
+                    "results\\basic_with_bc_more_rays_02_shoot_v7\\BasicAgent\\BasicAgent-1099983.pt"
+                ]
+            },
+            {
+                "steps": 1189760,
+                "file_path": "results\\basic_with_bc_more_rays_02_shoot_v7\\BasicAgent\\BasicAgent-1189760.onnx",
+                "reward": 183.54004790933652,
+                "creation_time": 1769706642.2622612,
+                "auxillary_file_paths": [
+                    "results\\basic_with_bc_more_rays_02_shoot_v7\\BasicAgent\\BasicAgent-1189760.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 1189760,
+            "file_path": "results\\basic_with_bc_more_rays_02_shoot_v7\\BasicAgent.onnx",
+            "reward": 183.54004790933652,
+            "creation_time": 1769706642.2622612,
+            "auxillary_file_paths": [
+                "results\\basic_with_bc_more_rays_02_shoot_v7\\BasicAgent\\BasicAgent-1189760.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "1.7.1+cu110"
+    }
+}

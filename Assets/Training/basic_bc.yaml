@@ -3,10 +3,10 @@ behaviors:
     trainer_type: ppo
     hyperparameters:
       batch_size: 1024
-      buffer_size: 10240
+      buffer_size: 20480
       learning_rate: 0.0002
-      beta: 0.005
-      epsilon: 0.2
+      beta: 0.01
+      epsilon: 0.25
       lambd: 0.95
       num_epoch: 3
       learning_rate_schedule: linear
@@ -20,13 +20,18 @@ behaviors:
         gamma: 0.99
         strength: 1.0
       gail:
-        gamma: 0.99
-        strength: 0.1
-        demo_path: C:\Users\Anna\Documents\tananyagok\Egyetemes\5th\szakdoga\Paintball_Simulation_Demo\Assets\Demonstrations\BasicAgent.demo
+        gamma: 0.9
+        strength: 0.05
+        demo_path: ../Demonstrations/BasicPlayer.demo
+        network_settings:
+          normalize: true
     behavioral_cloning:
-      demo_path: C:\Users\Anna\Documents\tananyagok\Egyetemes\5th\szakdoga\Paintball_Simulation_Demo\Assets\Demonstrations\BasicAgent.demo
-      strength: 0.5
-      steps: 150000
+      strength: 0.2
+      demo_path: ../Demonstrations/BasicPlayer.demo
+      steps: 300000
     max_steps: 4000000
     time_horizon: 128
     summary_freq: 10000
+    checkpoint_interval: 100000
+    keep_checkpoints: 5
+    threaded: true

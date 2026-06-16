@@ -1,0 +1,65 @@
+{
+    "DoubleAgent": {
+        "checkpoints": [
+            {
+                "steps": 3499982,
+                "file_path": "results\\multiagent_with_bc_03_onShootv6_v2\\DoubleAgent\\DoubleAgent-3499982.onnx",
+                "reward": 9.820544941084725,
+                "creation_time": 1770659605.6104894,
+                "auxillary_file_paths": [
+                    "results\\multiagent_with_bc_03_onShootv6_v2\\DoubleAgent\\DoubleAgent-3499982.pt"
+                ]
+            },
+            {
+                "steps": 3999940,
+                "file_path": "results\\multiagent_with_bc_03_onShootv6_v2\\DoubleAgent\\DoubleAgent-3999940.onnx",
+                "reward": 10.873115992173553,
+                "creation_time": 1770660775.7855268,
+                "auxillary_file_paths": [
+                    "results\\multiagent_with_bc_03_onShootv6_v2\\DoubleAgent\\DoubleAgent-3999940.pt"
+                ]
+            },
+            {
+                "steps": 4499970,
+                "file_path": "results\\multiagent_with_bc_03_onShootv6_v2\\DoubleAgent\\DoubleAgent-4499970.onnx",
+                "reward": null,
+                "creation_time": 1770661859.0145357,
+                "auxillary_file_paths": [
+                    "results\\multiagent_with_bc_03_onShootv6_v2\\DoubleAgent\\DoubleAgent-4499970.pt"
+                ]
+            },
+            {
+                "steps": 4999882,
+                "file_path": "results\\multiagent_with_bc_03_onShootv6_v2\\DoubleAgent\\DoubleAgent-4999882.onnx",
+                "reward": -5.351457557507923,
+                "creation_time": 1770662912.1396704,
+                "auxillary_file_paths": [
+                    "results\\multiagent_with_bc_03_onShootv6_v2\\DoubleAgent\\DoubleAgent-4999882.pt"
+                ]
+            },
+            {
+                "steps": 5000138,
+                "file_path": "results\\multiagent_with_bc_03_onShootv6_v2\\DoubleAgent\\DoubleAgent-5000138.onnx",
+                "reward": -5.351457557507923,
+                "creation_time": 1770662912.605383,
+                "auxillary_file_paths": [
+                    "results\\multiagent_with_bc_03_onShootv6_v2\\DoubleAgent\\DoubleAgent-5000138.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 5000138,
+            "file_path": "results\\multiagent_with_bc_03_onShootv6_v2\\DoubleAgent.onnx",
+            "reward": -5.351457557507923,
+            "creation_time": 1770662912.605383,
+            "auxillary_file_paths": [
+                "results\\multiagent_with_bc_03_onShootv6_v2\\DoubleAgent\\DoubleAgent-5000138.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "1.7.1+cu110"
+    }
+}

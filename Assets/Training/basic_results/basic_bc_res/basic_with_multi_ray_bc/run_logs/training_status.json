@@ -1,0 +1,65 @@
+{
+    "BasicAgent": {
+        "checkpoints": [
+            {
+                "steps": 3099955,
+                "file_path": "results\\basic_with_multi_ray_bc\\BasicAgent\\BasicAgent-3099955.onnx",
+                "reward": 51.15408032470279,
+                "creation_time": 1769446112.2834356,
+                "auxillary_file_paths": [
+                    "results\\basic_with_multi_ray_bc\\BasicAgent\\BasicAgent-3099955.pt"
+                ]
+            },
+            {
+                "steps": 3199924,
+                "file_path": "results\\basic_with_multi_ray_bc\\BasicAgent\\BasicAgent-3199924.onnx",
+                "reward": 65.33789825439453,
+                "creation_time": 1769446778.5770798,
+                "auxillary_file_paths": [
+                    "results\\basic_with_multi_ray_bc\\BasicAgent\\BasicAgent-3199924.pt"
+                ]
+            },
+            {
+                "steps": 3299901,
+                "file_path": "results\\basic_with_multi_ray_bc\\BasicAgent\\BasicAgent-3299901.onnx",
+                "reward": 61.33493661218219,
+                "creation_time": 1769447450.418965,
+                "auxillary_file_paths": [
+                    "results\\basic_with_multi_ray_bc\\BasicAgent\\BasicAgent-3299901.pt"
+                ]
+            },
+            {
+                "steps": 3399948,
+                "file_path": "results\\basic_with_multi_ray_bc\\BasicAgent\\BasicAgent-3399948.onnx",
+                "reward": 69.75459028035402,
+                "creation_time": 1769448097.4651823,
+                "auxillary_file_paths": [
+                    "results\\basic_with_multi_ray_bc\\BasicAgent\\BasicAgent-3399948.pt"
+                ]
+            },
+            {
+                "steps": 3403114,
+                "file_path": "results\\basic_with_multi_ray_bc\\BasicAgent\\BasicAgent-3403114.onnx",
+                "reward": 68.54017483592034,
+                "creation_time": 1769448109.0202644,
+                "auxillary_file_paths": [
+                    "results\\basic_with_multi_ray_bc\\BasicAgent\\BasicAgent-3403114.pt"
+                ]
+            }
+        ],
+        "final_checkpoint": {
+            "steps": 3403114,
+            "file_path": "results\\basic_with_multi_ray_bc\\BasicAgent.onnx",
+            "reward": 68.54017483592034,
+            "creation_time": 1769448109.0202644,
+            "auxillary_file_paths": [
+                "results\\basic_with_multi_ray_bc\\BasicAgent\\BasicAgent-3403114.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "1.7.1+cu110"
+    }
+}

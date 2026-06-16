@@ -7,7 +7,10 @@ public class Bullet : MonoBehaviour
     [SerializeField] private LayerMask hitLayers;
 
     private Rigidbody bulletRigidBody;
-    private float bulletSpeed = 50f;
+    private float bulletSpeed = 80f;
+    private float damage = 100f;
+    private bool hitOnce;
+    private bool nearMissRegistered = false;
     private Player ownerAgent;
 
     private void Awake()
@@ -21,7 +24,8 @@ public class Bullet : MonoBehaviour
         {
             bulletRigidBody.velocity = transform.forward * bulletSpeed;
         }
-        Destroy(gameObject, 3f);
+        Destroy(gameObject, 2f);
+        hitOnce = false;
     }
 
     public void SetOwner(Player agent)
@@ -31,80 +35,64 @@ public class Bullet : MonoBehaviour
 
     private void OnTriggerEnter(Collider other)
     {
-        //Debug.Log($"BULLET HIT: {other.name} (Tag: {other.tag})");
-
-        if (bulletRigidBody == null)
-            return;
+        //Debug.Log($"BULLET HIT: {other.name} (Tag: {other.tag}) owner:{other.GetComponentInParent<Player>()}");
+        if (bulletRigidBody == null) return;
 
         if (other.transform.IsChildOf(ownerAgent.transform)) return;
 
-        //Debug.Log("Ütközés: " + other.name + " Layer: "  + LayerMask.LayerToName(other.gameObject.layer));
-        //ownerAgent.RegisterHit(other.tag, other.gameObject);
-
+        Player victim = other.GetComponentInParent<Player>();
         Vector3 direction = bulletRigidBody.velocity.normalized;
 
-        // Check what we hit
-        bool hitTarget = other.CompareTag("Player"); // Direct hit on target
-        bool hitNearMiss = other.CompareTag("NearMiss"); // Near miss
-
-        // Near miss
-        if (hitNearMiss && ownerAgent != null)
+        if (other.CompareTag("NearMiss") && !nearMissRegistered)
         {
-            //Debug.Log("NEAR MISS!");
-            ownerAgent.RegisterHit("NearMiss", other.gameObject);
+            nearMissRegistered = true;
+            if (victim != null) victim.OnNearMissDetected();
             return;
         }
-        if (hitTarget)
+        if (other.CompareTag("Player") && !hitOnce)
         {
-            ownerAgent.RegisterHit("Player", other.gameObject);
-            Player victim = other.GetComponent<Player>();
-            if (victim != null) victim.GetHit();
-
+            if (victim != null) victim.TakeDamage(damage, ownerAgent);
+            hitOnce = true;
             Destroy(gameObject);
         }
-        else if (!other.isTrigger)
+        else if (!other.isTrigger && !hitOnce)
         {
-            ownerAgent.RegisterHit(other.tag, other.gameObject);
             Destroy(gameObject);
-        }
+        }    
 
         // Spawn visual effect
         RaycastHit hit;
         if (Physics.Raycast(transform.position - direction * 0.5f, direction, out hit, 1f, hitLayers))
         {
-            /*SpawnSplat(
-                hitTarget ? vfxHitGreen : vfxHitRed,
+           SpawnSplat(
+                victim ? vfxHitGreen : vfxHitRed,
                 hit.point,
                 hit.normal,
                 other.transform
-            );*/
+            );
         }
         else
         {
-            Vector3 hitPoint = other.ClosestPoint(transform.position);
-            Vector3 hitNormal = (transform.position - hitPoint).normalized;
-
-          /*  SpawnSplat(
-                hitTarget ? vfxHitGreen : vfxHitRed,
-                hitPoint,
-                hitNormal,
-                other.transform
-            );*/
+           Vector3 hitPoint = other.ClosestPoint(transform.position);
+           Vector3 hitNormal = (transform.position - hitPoint).normalized;
+          SpawnSplat(
+              victim ? vfxHitGreen : vfxHitRed,
+              hitPoint,
+              hitNormal,
+              other.transform
+           );
         }
-
     }
 
     private void SpawnSplat(Transform prefab, Vector3 hitPoint, Vector3 hitNormal, Transform hitTransform)
     {
-       Quaternion rotation = Quaternion.LookRotation(-hitNormal);
-        Vector3 spawnPos = hitPoint + hitNormal * 0.002f;
+       Quaternion rotation = Quaternion.identity;
+        Vector3 spawnPos = hitPoint;
         Transform splat = Instantiate(prefab, spawnPos, rotation);
 
         if (hitTransform != null)
-        {
             splat.SetParent(hitTransform);
-        }
 
-        Destroy(splat.gameObject, 10f);
+        Destroy(splat.gameObject, 2f);
     }
 }

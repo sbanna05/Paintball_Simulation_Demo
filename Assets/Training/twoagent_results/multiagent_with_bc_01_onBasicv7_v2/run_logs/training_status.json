@@ -1,0 +1,57 @@
+{
+    "DoubleAgent": {
+        "checkpoints": [
+            {
+                "steps": 499998,
+                "file_path": "results\\multiagent_with_bc_01_onBasicv7_v2\\DoubleAgent\\DoubleAgent-499998.onnx",
+                "reward": 32.674635312773965,
+                "creation_time": 1770494841.5519867,
+                "auxillary_file_paths": [
+                    "results\\multiagent_with_bc_01_onBasicv7_v2\\DoubleAgent\\DoubleAgent-499998.pt"
+                ]
+            },
+            {
+                "steps": 999914,
+                "file_path": "results\\multiagent_with_bc_01_onBasicv7_v2\\DoubleAgent\\DoubleAgent-999914.onnx",
+                "reward": 21.07698596375329,
+                "creation_time": 1770498367.2658184,
+                "auxillary_file_paths": [
+                    "results\\multiagent_with_bc_01_onBasicv7_v2\\DoubleAgent\\DoubleAgent-999914.pt"
+                ]
+            },
+            {
+                "steps": 1499960,
+                "file_path": "results\\multiagent_with_bc_01_onBasicv7_v2\\DoubleAgent\\DoubleAgent-1499960.onnx",
+                "reward": null,
+                "creation_time": 1770502188.5658708,
+                "auxillary_file_paths": [
+                    "results\\multiagent_with_bc_01_onBasicv7_v2\\DoubleAgent\\DoubleAgent-1499960.pt"
+                ]
+            },
+            {
+                "steps": 1700563,
+                "file_path": "results\\multiagent_with_bc_01_onBasicv7_v2\\DoubleAgent\\DoubleAgent-1700563.onnx",
+                "reward": 13.63211857303977,
+                "creation_time": 1770503789.7910402,
+                "auxillary_file_paths": [
+                    "results\\multiagent_with_bc_01_onBasicv7_v2\\DoubleAgent\\DoubleAgent-1700563.pt"
+                ]
+            }
+        ],
+        "elo": 1120.4159648418554,
+        "final_checkpoint": {
+            "steps": 1700563,
+            "file_path": "results\\multiagent_with_bc_01_onBasicv7_v2\\DoubleAgent.onnx",
+            "reward": 13.63211857303977,
+            "creation_time": 1770503789.7910402,
+            "auxillary_file_paths": [
+                "results\\multiagent_with_bc_01_onBasicv7_v2\\DoubleAgent\\DoubleAgent-1700563.pt"
+            ]
+        }
+    },
+    "metadata": {
+        "stats_format_version": "0.3.0",
+        "mlagents_version": "0.28.0",
+        "torch_version": "1.7.1+cu110"
+    }
+}
